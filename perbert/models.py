@@ -7,7 +7,7 @@ from torch import Tensor
 from torch._C import device
 from torch.nn import Module, Softmax
 from transformers import BertConfig, BertModel, BertTokenizer
-from transformers.modeling_bert import BertSelfAttention
+from transformers.modeling_bert import BertAttention, BertSelfAttention
 
 
 class PatchedBertSelfAttention(Module):
@@ -74,6 +74,7 @@ class PatchedBertSelfAttention(Module):
         "This part of code is adapted from the `BertSelfAttention` class. It's the patched `forward` of `BertSelfAttention`"
 
         query = self.query(hidden_states)
+        injected_self._loss_value = torch.tensor(0.0)
 
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
@@ -96,13 +97,12 @@ class PatchedBertSelfAttention(Module):
 
         if injected_self.blind_spot:
             diag = torch.eye(attention_scores.shape[-1])
-            for _ in range(len(attention_scores.shape)):
+            for _ in range(attention_scores.ndim - diag.ndim):
                 diag.unsqueeze_(0)
 
-            assert len(attention_scores.shape) == 3, attention_scores.shape
             assert attention_scores.shape[-1] == attention_scores.shape[-2]
             blind_spot_mask = 1.0 - diag
-            assert blind_spot_mask.shape == attention_scores.shape
+            assert blind_spot_mask.ndim == attention_scores.ndim
             attention_scores = attention_scores * blind_spot_mask
 
         attention_scores = attention_scores / np.sqrt(self.attention_head_size)
@@ -111,11 +111,13 @@ class PatchedBertSelfAttention(Module):
 
         if injected_self.lmbda != 0:
             diag = torch.eye(attention_scores.shape[-1])
-            for _ in range(len(attention_scores.shape)):
+            for _ in range(attention_scores.ndim - diag.ndim):
                 diag.unsqueeze_(0)
 
-            self._loss_value = (
-                self._loss_value + (injected_self.lmbda * diag * attention_scores).sum()
+            assert diag.ndim == attention_scores.ndim
+            injected_self._loss_value = (
+                injected_self._loss_value
+                + (injected_self.lmbda * diag * attention_scores).sum()
             )
 
         if injected_self.drop_attn:
@@ -151,11 +153,10 @@ class PatchedBert(Module):
         super().__init__()
 
         self.model = model
-        # for layer in self.model.encoder.layer:
-        #     layer.attention.query
-        #     layer.attention = PatchedBertSelfAttention(
-        #         layer.attention, blind_spot, drop_attn, lmbda
-        #     )
+        for layer in self.model.encoder.layer:
+            layer.attention.self = PatchedBertSelfAttention(
+                layer.attention.self, blind_spot, drop_attn, lmbda
+            )
 
     def forward(self, *args: List[Any], **kwargs: Dict[str, Any]) -> Any:
         return self.model(*args, **kwargs)
