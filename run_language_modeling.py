@@ -213,7 +213,7 @@ def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -
 def mask_tokens(
     inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """ Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original. """
+    """Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original."""
 
     if tokenizer.mask_token is None:
         raise ValueError(
@@ -258,7 +258,7 @@ def mask_tokens(
 def train(
     args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedTokenizer
 ) -> Tuple[int, float]:
-    """ Train the model """
+    """Train the model"""
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter()
 
@@ -820,6 +820,8 @@ def main():
     parser.add_argument(
         "--server_port", type=str, default="", help="For distant debugging."
     )
+    # FIXME: options
+    parser.add_argument("--custom", action="store_true")
     parser.add_argument("--blind", action="store_true")
     parser.add_argument("--ortho", action="store_true")
     parser.add_argument("--lmbda", type=float, default=0.0)
@@ -950,7 +952,8 @@ def main():
             config=config,
             cache_dir=args.cache_dir,
         )
-        model = PatchedBert(model, args.blind, args.ortho, args.lmbda)
+        if args.custom:
+            model = PatchedBert(model, args.blind, args.ortho, args.lmbda)
     else:
         logger.info("Training new model from scratch")
         model = AutoModelWithLMHead.from_config(config)
