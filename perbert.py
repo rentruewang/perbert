@@ -15,7 +15,6 @@ class PatchedBertSelfAttention(Module):
         self,
         model: BertSelfAttention,
         blind_spot: bool,
-        drop_attn: bool,
         lmbda: float = 0.0,
     ):
         super().__init__()
@@ -23,9 +22,8 @@ class PatchedBertSelfAttention(Module):
         self.model = model
 
         self.blind_spot = blind_spot
-        self.drop_attn = drop_attn
         self.lmbda = lmbda
-        self._loss_value = torch.tensor(0.0)
+        self._lagrange = torch.tensor(0.0)
 
         # Monkey patching the forward method.
         self.model.forward = MethodType(self.patch_forward, self.model)
@@ -47,7 +45,8 @@ class PatchedBertSelfAttention(Module):
     def value(self):
         return self.model.value
 
-    def loss(self) -> Tensor:
+    @property
+    def lagrange(self):
         """
         Additional losses that the patches generates.
 
@@ -57,13 +56,10 @@ class PatchedBertSelfAttention(Module):
         A scalar tensor that propagate loss values to the model.
         """
 
-        if self.lmbda == 0.0:
-            return torch.tensor(0.0)
-        else:
-            return self._loss_value
+        return self._lagrange
 
     def patch_forward(
-        injected_self,
+        inj_self,
         self: BertSelfAttention,
         hidden_states,
         attention_mask=None,
@@ -74,7 +70,7 @@ class PatchedBertSelfAttention(Module):
         "This part of code is adapted from the `BertSelfAttention` class. It's the patched `forward` of `BertSelfAttention`"
 
         query = self.query(hidden_states)
-        injected_self._loss_value = torch.tensor(0.0)
+        inj_self._lagrange = 0
 
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
@@ -95,8 +91,8 @@ class PatchedBertSelfAttention(Module):
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = query @ key.transpose(-1, -2)
 
-        if injected_self.blind_spot:
-            diag = torch.eye(attention_scores.shape[-1])
+        if inj_self.blind_spot:
+            diag = torch.eye(attention_scores.shape[-1], device=attention_scores.device)
             for _ in range(attention_scores.ndim - diag.ndim):
                 diag.unsqueeze_(0)
 
@@ -109,25 +105,19 @@ class PatchedBertSelfAttention(Module):
         if attention_mask is not None:
             attention_scores = attention_scores + attention_mask
 
-        if injected_self.lmbda != 0:
-            diag = torch.eye(attention_scores.shape[-1])
+        if inj_self.lmbda != 0:
+            diag = torch.eye(attention_scores.shape[-1], device=attention_scores.device)
             for _ in range(attention_scores.ndim - diag.ndim):
                 diag.unsqueeze_(0)
 
             assert diag.ndim == attention_scores.ndim
-            injected_self._loss_value = (
-                injected_self._loss_value
-                + (injected_self.lmbda * diag * attention_scores).sum()
+            inj_self._lagrange = (
+                inj_self._lagrange + (inj_self.lmbda * diag * attention_scores).sum()
             )
 
-        if injected_self.drop_attn:
-            # Dropout the tokens.
-            attn_probs = self.dropout(attention_scores)
-            attn_probs = Softmax(dim=-1)(attention_scores)
-        else:
-            # Normalize the attention scores to probabilities and dropout, as in the original transformer paper.
-            attn_probs = Softmax(dim=-1)(attention_scores)
-            attn_probs = self.dropout(attn_probs)
+        # Normalize the attention scores to probabilities and dropout, as in the original transformer paper.
+        attn_probs = Softmax(dim=-1)(attention_scores)
+        attn_probs = self.dropout(attn_probs)
 
         # Mask heads if we want to
         if head_mask is not None:
@@ -147,7 +137,7 @@ class PatchedBert(Module):
         self,
         model: BertModel,
         blind_spot: bool,
-        drop_attn: bool,
+        orthogonal: float,
         lmbda: float = 0.0,
     ):
         super().__init__()
@@ -155,8 +145,19 @@ class PatchedBert(Module):
         self.model = model
         for layer in self.model.encoder.layer:
             layer.attention.self = PatchedBertSelfAttention(
-                layer.attention.self, blind_spot, drop_attn, lmbda
+                layer.attention.self, blind_spot, lmbda
             )
+        self._orthogonal = orthogonal
+
+    @property
+    def lagrange(self):
+        return sum(layer.attention.self.lagrange for layer in self.model.encoder.layer)
+
+    @property
+    def orthogonal(self):
+        weight = self.model.pooler.dense.weight
+        matmul = weight @ weight.T
+        return self._orthogonal * (torch.eye(matmul.shape[-1]) - matmul).pow(2).sum()
 
     def forward(self, *args: List[Any], **kwargs: Dict[str, Any]) -> Any:
         return self.model(*args, **kwargs)
@@ -164,7 +165,7 @@ class PatchedBert(Module):
 
 if __name__ == "__main__":
     bert = BertModel.from_pretrained("bert-base-uncased")
-    bert = PatchedBert(bert, True, True, 1)
+    bert = PatchedBert(bert, True, 1, 1)
 
     tnk = BertTokenizer.from_pretrained("bert-base-uncased")
     tok = tnk.tokenize("hello, world.")
@@ -183,3 +184,6 @@ if __name__ == "__main__":
 
     out = bert(**tok1)
     print(out)
+    print(len(out), list(o.shape for o in out))
+    print(bert.lagrange)
+    print(bert.orthogonal)
