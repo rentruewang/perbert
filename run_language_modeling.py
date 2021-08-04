@@ -42,6 +42,7 @@ from transformers import (
     AutoConfig,
     AutoModelWithLMHead,
     AutoTokenizer,
+    BertForMaskedLM,
     PreTrainedModel,
     PreTrainedTokenizer,
     get_linear_schedule_with_warmup,
@@ -440,11 +441,10 @@ def train(
             inputs = inputs.to(args.device)
             labels = labels.to(args.device)
             model.train()
-            outputs = (
-                model(inputs, masked_lm_labels=labels)
-                if args.mlm
-                else model(inputs, labels=labels)
-            )
+            assert isinstance(model, BertForMaskedLM), type(model)
+            outputs = model(inputs, masked_lm_labels=labels)
+
+            # TODO: figure out what the output is
             loss = outputs[0]
             # model outputs are always tuple in transformers (see doc)
 
@@ -552,15 +552,9 @@ def train(
 
             _rotate_checkpoints(args, checkpoint_prefix)
 
-            torch.save(
-                optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
-            )
-            torch.save(
-                scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
-            )
-            logger.info(
-                "Saving optimizer and scheduler states to %s", output_dir
-            )
+            torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
+            torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
+            logger.info("Saving optimizer and scheduler states to %s", output_dir)
 
             break
 
@@ -986,6 +980,7 @@ def main():
             cache_dir=args.cache_dir,
         )
         print("Using " + str(device))
+        print("Type of model: ", type(model))
         if args.custom:
             print("running custom code")
             model.bert = PatchedBert(model.bert, args.blind, args.ortho, args.lmbda)
