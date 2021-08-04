@@ -147,6 +147,7 @@ class PatchedBert(Module):
             layer.attention.self = PatchedBertSelfAttention(
                 layer.attention.self, blind_spot, lmbda
             )
+
         self._orthogonal = orthogonal
 
     @property

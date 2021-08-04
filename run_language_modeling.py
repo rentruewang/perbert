@@ -258,7 +258,8 @@ def mask_tokens(
 def train(
     args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedTokenizer
 ) -> Tuple[int, float]:
-    """Train the model"""
+    print("""Train the model""")
+
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter()
 
@@ -421,6 +422,7 @@ def train(
         disable=args.local_rank not in [-1, 0],
     )
     set_seed(args)  # Added here for reproducibility
+    print("trange")
     for _ in train_iterator:
         epoch_iterator = tqdm(
             train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0]
@@ -531,10 +533,41 @@ def train(
                 break
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
+
+            # FIXME
+            checkpoint_prefix = "checkpoint"
+            # Save model checkpoint
+            output_dir = os.path.join(
+                args.output_dir, "{}-{}".format(checkpoint_prefix, global_step)
+            )
+            os.makedirs(output_dir, exist_ok=True)
+            model_to_save = (
+                model.module if hasattr(model, "module") else model
+            )  # Take care of distributed/parallel training
+            model_to_save.save_pretrained(output_dir)
+            tokenizer.save_pretrained(output_dir)
+
+            torch.save(args, os.path.join(output_dir, "training_args.bin"))
+            logger.info("Saving model checkpoint to %s", output_dir)
+
+            _rotate_checkpoints(args, checkpoint_prefix)
+
+            torch.save(
+                optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
+            )
+            torch.save(
+                scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
+            )
+            logger.info(
+                "Saving optimizer and scheduler states to %s", output_dir
+            )
+
             break
 
     if args.local_rank in [-1, 0]:
         tb_writer.close()
+
+    print("done training")
 
     return global_step, tr_loss / global_step
 
@@ -948,12 +981,14 @@ def main():
         print("This part is run")
         model = AutoModelWithLMHead.from_pretrained(
             args.model_name_or_path,
-            from_tf=bool(".ckpt" in args.model_name_or_path),
+            from_tf=False,
             config=config,
             cache_dir=args.cache_dir,
         )
+        print("Using " + str(device))
         if args.custom:
-            model = PatchedBert(model, args.blind, args.ortho, args.lmbda)
+            print("running custom code")
+            model.bert = PatchedBert(model.bert, args.blind, args.ortho, args.lmbda)
     else:
         logger.info("Training new model from scratch")
         model = AutoModelWithLMHead.from_config(config)
@@ -966,7 +1001,9 @@ def main():
     logger.info("Training/evaluation parameters %s", args)
 
     # Training
+    print("do train: " + str(args.do_train))
     if args.do_train:
+        print("start training")
         if args.local_rank not in [-1, 0]:
             torch.distributed.barrier()  # Barrier to make sure only the first process in distributed training process the dataset, and the others will use the cache
 
