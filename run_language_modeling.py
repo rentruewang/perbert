@@ -18,8 +18,8 @@ Fine-tuning the library models for language modeling on a text file (GPT, GPT-2,
 GPT and GPT-2 are fine-tuned using a causal language modeling (CLM) loss while BERT and RoBERTa are fine-tuned
 using a masked language modeling (MLM) loss.
 """
-
 import argparse
+import gc
 import glob
 import logging
 import os
@@ -31,8 +31,15 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
+from torch._C import Value
 from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
+from torch.utils.data import (
+    ChainDataset,
+    DataLoader,
+    Dataset,
+    RandomSampler,
+    SequentialSampler,
+)
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import (
@@ -43,6 +50,7 @@ from transformers import (
     AutoModelWithLMHead,
     AutoTokenizer,
     BertForMaskedLM,
+    BertTokenizerFast,
     PreTrainedModel,
     PreTrainedTokenizer,
     get_linear_schedule_with_warmup,
@@ -78,13 +86,19 @@ class TextDataset(Dataset):
             directory,
             args.model_type + "_cached_lm_" + str(block_size) + "_" + filename,
         )
-
+        print("loading " + file_path, cached_features_file)
+        gc.collect()
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
             logger.info("Loading features from cached file %s", cached_features_file)
             with open(cached_features_file, "rb") as handle:
                 self.examples = pickle.load(handle)
         else:
-            logger.info("Creating features from dataset file at %s", directory)
+            # raise ValueError("not possible")
+            logger.info(
+                "Creating features from dataset file at {}".format(
+                    (directory, file_path)
+                )
+            )
 
             self.examples = []
             with open(file_path, encoding="utf-8") as f:
@@ -92,7 +106,7 @@ class TextDataset(Dataset):
 
             tokenized_text = tokenizer.convert_tokens_to_ids(tokenizer.tokenize(text))
 
-            for i in range(
+            for i in trange(
                 0, len(tokenized_text) - block_size + 1, block_size
             ):  # Truncate in block of block_size
                 self.examples.append(
@@ -103,7 +117,6 @@ class TextDataset(Dataset):
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
             # If your dataset is small, first you should loook for a bigger one :-) and second you
             # can change this behavior by adding (model specific) padding.
-
             logger.info("Saving features into cached file %s", cached_features_file)
             with open(cached_features_file, "wb") as handle:
                 pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
@@ -115,42 +128,57 @@ class TextDataset(Dataset):
         return torch.tensor(self.examples[item], dtype=torch.long)
 
 
-class LineByLineTextDataset(Dataset):
-    def __init__(
-        self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
-    ):
-        assert os.path.isfile(file_path)
-        # Here, we do not cache the features, operating under the assumption
-        # that we will soon use fast multithreaded tokenizers from the
-        # `tokenizers` repo everywhere =)
-        logger.info("Creating features from dataset file at %s", file_path)
+def SplitChainDataset(
+    tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
+):
+    path, fname = os.path.split(file_path)
+    datadir = os.path.join(path, "dataset-" + fname.split(".")[0])
+    files = sorted(glob.glob(f"{datadir}/*"))
+    files = [f for f in files if "_cached_lm_" not in f]
+    print("loading " + str(files))
 
-        with open(file_path, encoding="utf-8") as f:
-            lines = [
-                line
-                for line in f.read().splitlines()
-                if (len(line) > 0 and not line.isspace())
-            ]
+    datasets = [TextDataset(tokenizer, args, f, block_size) for f in files]
+    return ChainDataset(datasets)
 
-        self.examples = tokenizer.batch_encode_plus(
-            lines, add_special_tokens=True, max_length=block_size
-        )["input_ids"]
 
-    def __len__(self):
-        return len(self.examples)
+# class LineByLineTextDataset(Dataset):
+#     def __init__(
+#         self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
+#     ):
+#         assert os.path.isfile(file_path)
+#         # Here, we do not cache the features, operating under the assumption
+#         # that we will soon use fast multithreaded tokenizers from the
+#         # `tokenizers` repo everywhere =)
+#         logger.info("Creating features from dataset file at %s", file_path)
 
-    def __getitem__(self, i):
-        return torch.tensor(self.examples[i], dtype=torch.long)
+#         with open(file_path, encoding="utf-8") as f:
+#             lines = [
+#                 line
+#                 for line in f.read().splitlines()
+#                 if (len(line) > 0 and not line.isspace())
+#             ]
+
+#         self.examples = tokenizer.batch_encode_plus(
+#             lines, add_special_tokens=True, max_length=block_size
+#         )["input_ids"]
+#         raise NotImplementedError
+
+#     def __len__(self):
+#         return len(self.examples)
+
+#     def __getitem__(self, i):
+#         return torch.tensor(self.examples[i], dtype=torch.long)
 
 
 def load_and_cache_examples(args, tokenizer, evaluate=False):
     file_path = args.eval_data_file if evaluate else args.train_data_file
     if args.line_by_line:
-        return LineByLineTextDataset(
-            tokenizer, args, file_path=file_path, block_size=args.block_size
-        )
+        # return LineByLineTextDataset(
+        #     tokenizer, args, file_path=file_path, block_size=args.block_size
+        # )
+        raise ValueError
     else:
-        return TextDataset(
+        return SplitChainDataset(
             tokenizer, args, file_path=file_path, block_size=args.block_size
         )
 
@@ -496,66 +524,44 @@ def train(
                     )
                     logging_loss = tr_loss
 
-                if (
-                    args.local_rank in [-1, 0]
-                    and args.save_steps > 0
-                    and global_step % args.save_steps == 0
-                ):
-                    checkpoint_prefix = "checkpoint"
-                    # Save model checkpoint
-                    output_dir = os.path.join(
-                        args.output_dir, "{}-{}".format(checkpoint_prefix, global_step)
-                    )
-                    os.makedirs(output_dir, exist_ok=True)
-                    model_to_save = (
-                        model.module if hasattr(model, "module") else model
-                    )  # Take care of distributed/parallel training
-                    model_to_save.save_pretrained(output_dir)
-                    tokenizer.save_pretrained(output_dir)
+                # if (
+                #     args.local_rank in [-1, 0]
+                #     and args.save_steps > 0
+                #     and global_step % args.save_steps == 0
+                # ):
 
-                    torch.save(args, os.path.join(output_dir, "training_args.bin"))
-                    logger.info("Saving model checkpoint to %s", output_dir)
+                #     checkpoint_prefix = "checkpoint"
+                #     # Save model checkpoint
+                #     output_dir = os.path.join(
+                #         args.output_dir, "{}-{}".format(checkpoint_prefix, global_step)
+                #     )
+                #     os.makedirs(output_dir, exist_ok=True)
+                #     model_to_save = (
+                #         model.module if hasattr(model, "module") else model
+                #     )  # Take care of distributed/parallel training
+                #     model_to_save.save_pretrained(output_dir)
+                #     tokenizer.save_pretrained(output_dir)
 
-                    _rotate_checkpoints(args, checkpoint_prefix)
+                #     torch.save(args, os.path.join(output_dir, "training_args.bin"))
+                #     logger.info("Saving model checkpoint to %s", output_dir)
 
-                    torch.save(
-                        optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
-                    )
-                    torch.save(
-                        scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
-                    )
-                    logger.info(
-                        "Saving optimizer and scheduler states to %s", output_dir
-                    )
+                #     _rotate_checkpoints(args, checkpoint_prefix)
+
+                #     torch.save(
+                #         optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
+                #     )
+                #     torch.save(
+                #         scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
+                #     )
+                #     logger.info(
+                #         "Saving optimizer and scheduler states to %s", output_dir
+                #     )
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
         if args.max_steps > 0 and global_step > args.max_steps:
             train_iterator.close()
-
-            # FIXME
-            checkpoint_prefix = "checkpoint"
-            # Save model checkpoint
-            output_dir = os.path.join(
-                args.output_dir, "{}-{}".format(checkpoint_prefix, global_step)
-            )
-            os.makedirs(output_dir, exist_ok=True)
-            model_to_save = (
-                model.module if hasattr(model, "module") else model
-            )  # Take care of distributed/parallel training
-            model_to_save.save_pretrained(output_dir)
-            tokenizer.save_pretrained(output_dir)
-
-            torch.save(args, os.path.join(output_dir, "training_args.bin"))
-            logger.info("Saving model checkpoint to %s", output_dir)
-
-            _rotate_checkpoints(args, checkpoint_prefix)
-
-            torch.save(optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt"))
-            torch.save(scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt"))
-            logger.info("Saving optimizer and scheduler states to %s", output_dir)
-
             break
 
     if args.local_rank in [-1, 0]:
@@ -951,11 +957,12 @@ def main():
         )
 
     if args.tokenizer_name:
-        tokenizer = AutoTokenizer.from_pretrained(
+        print("fast tokenizer")
+        tokenizer = BertTokenizerFast.from_pretrained(
             args.tokenizer_name, cache_dir=args.cache_dir
         )
     elif args.model_name_or_path:
-        tokenizer = AutoTokenizer.from_pretrained(
+        tokenizer = BertTokenizerFast.from_pretrained(
             args.model_name_or_path, cache_dir=args.cache_dir
         )
     else:
@@ -983,7 +990,7 @@ def main():
         print("Type of model: ", type(model))
         if args.custom:
             print("running custom code")
-            model.bert = PatchedBert(model.bert, args.blind, args.ortho, args.lmbda)
+            model = PatchedBertForMaskedLM(model, args.blind, args.ortho, args.lmbda)
     else:
         logger.info("Training new model from scratch")
         model = AutoModelWithLMHead.from_config(config)
@@ -1022,7 +1029,11 @@ def main():
         model_to_save = (
             model.module if hasattr(model, "module") else model
         )  # Take care of distributed/parallel training
-        model_to_save.save_pretrained(args.output_dir)
+        # FIXME
+        torch.save(
+            model_to_save.cpu().state_dict(), open(args.output_dir + "/model.pkl", "wb")
+        )
+        # model_to_save.save_pretrained(args.output_dir)
         tokenizer.save_pretrained(args.output_dir)
 
         # Good practice: save your training arguments together with the trained model
@@ -1030,7 +1041,8 @@ def main():
 
         # Load a trained model and vocabulary that you have fine-tuned
         model = AutoModelWithLMHead.from_pretrained(args.output_dir)
-        tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
+        # tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
+        tokenizer = BertTokenizerFast.from_pretrained(args.output_dir)
         model.to(args.device)
 
     # Evaluation

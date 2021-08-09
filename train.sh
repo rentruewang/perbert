@@ -41,17 +41,17 @@ echo
 
 # echo done
 # echo
-echo Trainig on $TRAIN_FILE, running bert-blortho
+# echo Trainig on $TRAIN_FILE, running bert-blortho
 
-python run_language_modeling.py \
-    --output_dir=bert-blortho \
-    --model_type=bert-base-uncased \
-    --model_name_or_path=bert-base-uncased \
-    --do_train \
-    --train_data_file=$TRAIN_FILE \
-    --max_steps 1 \
-    --custom \
-    --blind --ortho 
+# python run_language_modeling.py \
+#     --output_dir=bert-blortho \
+#     --model_type=bert-base-uncased \
+#     --model_name_or_path=bert-base-uncased \
+#     --do_train \
+#     --train_data_file=$TRAIN_FILE \
+#     --max_steps 1 \
+#     --custom \
+#     --blind --ortho 
 
-echo done
-echo
+# echo done
+# echo

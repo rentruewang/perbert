@@ -15,7 +15,6 @@
 # limitations under the License.
 """ Finetuning the library models for sequence classification on GLUE (Bert, XLM, XLNet, RoBERTa, Albert, XLM-RoBERTa)."""
 
-
 import argparse
 import glob
 import json
@@ -35,6 +34,7 @@ from transformers import (
     AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
+    BertModel,
     get_linear_schedule_with_warmup,
 )
 from transformers import glue_compute_metrics as compute_metrics
@@ -43,6 +43,8 @@ from transformers import (
 )
 from transformers import glue_output_modes as output_modes
 from transformers import glue_processors as processors
+
+from perbert import *
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -393,7 +395,8 @@ def evaluate(args, model, tokenizer, prefix=""):
                         batch[2]
                         if args.model_type in ["bert", "xlnet", "albert"]
                         else None
-                    )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+                    )
+                    # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -681,6 +684,9 @@ def main():
     parser.add_argument(
         "--server_port", type=str, default="", help="For distant debugging."
     )
+
+    # FIXME
+    parser.add_argument("--custom", action="store_true")
     args = parser.parse_args()
 
     if (
@@ -764,7 +770,7 @@ def main():
     )
     model = AutoModelForSequenceClassification.from_pretrained(
         args.model_name_or_path,
-        from_tf=bool(".ckpt" in args.model_name_or_path),
+        from_tf=False,
         config=config,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
@@ -803,7 +809,14 @@ def main():
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
 
         # Load a trained model and vocabulary that you have fine-tuned
-        model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)
+        # FIXME
+        if args.custom:
+            model = BertForMaskedLM(config)
+            model = PatchedBertForMaskedLM(model)
+            STATE = torch.load(open(args.output_dir + "/model.pkl", "rb"))
+            model.load_state_dict(STATE)
+        else:
+            model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)
         tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
         model.to(args.device)
 

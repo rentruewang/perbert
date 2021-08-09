@@ -7,7 +7,7 @@ from torch import Tensor
 from torch._C import device
 from torch.nn import Module, Softmax
 from transformers import BertConfig, BertModel, BertTokenizer
-from transformers.modeling_bert import BertAttention, BertSelfAttention
+from transformers.modeling_bert import BertForMaskedLM, BertSelfAttention
 
 
 def PatchedBertSelfAttention(
@@ -36,6 +36,8 @@ def PatchedBertSelfAttention(
         encoder_attention_mask=None,
     ):
         "This part of code is adapted from the `BertSelfAttention` class. It's the patched `forward` of `BertSelfAttention`"
+
+        assert isinstance(self, BertSelfAttention), type(self)
 
         query = self.query(hidden_states)
         self._lagrange = 0
@@ -111,6 +113,7 @@ def PatchedBert(
     orthogonal: float,
     lmbda: float = 0.0,
 ):
+    assert isinstance(model, BertModel), type(model)
     for layer in model.encoder.layer:
         layer.attention.self = PatchedBertSelfAttention(
             layer.attention.self, blind_spot, lmbda
@@ -127,6 +130,17 @@ def PatchedBert(
     model.lagrange = MethodType(lag_method, model)
     model.orthogonal = MethodType(ortho_method, model)
 
+    return model
+
+
+def PatchedBertForMaskedLM(
+    model: BertForMaskedLM,
+    blind_spot: bool,
+    orthogonal: float,
+    lmbda: float = 0.0,
+):
+    assert isinstance(model, BertForMaskedLM), type(model)
+    model.bert = PatchedBert(model.bert, blind_spot, orthogonal, lmbda)
     return model
 
 
@@ -155,3 +169,10 @@ if __name__ == "__main__":
     print(len(out), list(o.shape for o in out))
     print(bert.lagrange())
     print(bert.orthogonal())
+
+    torch.save(bert.state_dict(), open("model.pkl", "wb"))
+    state_dict = torch.load(open("model.pkl", "rb"))
+    # print(bert_rec)
+    bert.load_state_dict(state_dict)
+    out2 = bert(**tok1)
+    print(out2)
