@@ -34,7 +34,6 @@ from transformers import (
     AutoConfig,
     AutoModelForSequenceClassification,
     AutoTokenizer,
-    BertModel,
     get_linear_schedule_with_warmup,
 )
 from transformers import glue_compute_metrics as compute_metrics
@@ -813,7 +812,7 @@ def main():
         if args.custom:
             model = BertForMaskedLM(config)
             model = PatchedBertForMaskedLM(model)
-            STATE = torch.load(open(args.output_dir + "/model.pkl", "rb"))
+            STATE = torch.load(open(args.output_dir + "/my-custom-model.pkl", "rb"))
             model.load_state_dict(STATE)
         else:
             model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)

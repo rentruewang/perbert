@@ -1,12 +1,9 @@
 from types import MethodType
-from typing import Any, Dict, List
 
 import numpy as np
 import torch
-from torch import Tensor
-from torch._C import device
-from torch.nn import Module, Softmax
-from transformers import BertConfig, BertModel, BertTokenizer
+from torch.nn import Softmax
+from transformers import BertModel, BertTokenizer
 from transformers.modeling_bert import BertForMaskedLM, BertSelfAttention
 
 
@@ -37,7 +34,7 @@ def PatchedBertSelfAttention(
     ):
         "This part of code is adapted from the `BertSelfAttention` class. It's the patched `forward` of `BertSelfAttention`"
 
-        assert isinstance(self, BertSelfAttention), type(self)
+        # assert isinstance(self, BertSelfAttention), type(self)
 
         query = self.query(hidden_states)
         self._lagrange = 0
@@ -75,13 +72,13 @@ def PatchedBertSelfAttention(
         if attention_mask is not None:
             attention_scores = attention_scores + attention_mask
 
-        if lmbda != 0:
-            diag = torch.eye(attention_scores.shape[-1], device=attention_scores.device)
-            for _ in range(attention_scores.ndim - diag.ndim):
-                diag.unsqueeze_(0)
+        # if lmbda != 0:
+        #     diag = torch.eye(attention_scores.shape[-1], device=attention_scores.device)
+        #     for _ in range(attention_scores.ndim - diag.ndim):
+        #         diag.unsqueeze_(0)
 
-            assert diag.ndim == attention_scores.ndim
-            self._lagrange = self._lagrange + (lmbda * diag * attention_scores).sum()
+        #     assert diag.ndim == attention_scores.ndim
+        #     self._lagrange = self._lagrange + (lmbda * diag * attention_scores).sum()
 
         # Normalize the attention scores to probabilities and dropout, as in the original transformer paper.
         attn_probs = Softmax(dim=-1)(attention_scores)
@@ -113,7 +110,7 @@ def PatchedBert(
     orthogonal: float,
     lmbda: float = 0.0,
 ):
-    assert isinstance(model, BertModel), type(model)
+    # assert isinstance(model, BertModel), type(model)
     for layer in model.encoder.layer:
         layer.attention.self = PatchedBertSelfAttention(
             layer.attention.self, blind_spot, lmbda
@@ -139,7 +136,7 @@ def PatchedBertForMaskedLM(
     orthogonal: float,
     lmbda: float = 0.0,
 ):
-    assert isinstance(model, BertForMaskedLM), type(model)
+    # assert isinstance(model, BertForMaskedLM), type(model)
     model.bert = PatchedBert(model.bert, blind_spot, orthogonal, lmbda)
     return model
 

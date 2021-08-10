@@ -27,11 +27,12 @@ import pickle
 import random
 import re
 import shutil
+import sys
+from types import FunctionType, ModuleType
 from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-from torch._C import Value
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import (
     ChainDataset,
@@ -48,7 +49,6 @@ from transformers import (
     AdamW,
     AutoConfig,
     AutoModelWithLMHead,
-    AutoTokenizer,
     BertForMaskedLM,
     BertTokenizerFast,
     PreTrainedModel,
@@ -87,11 +87,10 @@ class TextDataset(Dataset):
             args.model_type + "_cached_lm_" + str(block_size) + "_" + filename,
         )
         print("loading " + file_path, cached_features_file)
-        gc.collect()
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
             logger.info("Loading features from cached file %s", cached_features_file)
             with open(cached_features_file, "rb") as handle:
-                self.examples = pickle.load(handle)
+                examples = pickle.load(handle)
         else:
             # raise ValueError("not possible")
             logger.info(
@@ -100,7 +99,7 @@ class TextDataset(Dataset):
                 )
             )
 
-            self.examples = []
+            examples = []
             with open(file_path, encoding="utf-8") as f:
                 text = f.read()
 
@@ -109,7 +108,7 @@ class TextDataset(Dataset):
             for i in trange(
                 0, len(tokenized_text) - block_size + 1, block_size
             ):  # Truncate in block of block_size
-                self.examples.append(
+                examples.append(
                     tokenizer.build_inputs_with_special_tokens(
                         tokenized_text[i : i + block_size]
                     )
@@ -119,7 +118,11 @@ class TextDataset(Dataset):
             # can change this behavior by adding (model specific) padding.
             logger.info("Saving features into cached file %s", cached_features_file)
             with open(cached_features_file, "wb") as handle:
-                pickle.dump(self.examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+                pickle.dump(examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+        self.examples = np.array(examples).astype("int32")
+        del examples
+        gc.collect()
+        print(self.examples.dtype, self.examples.size, self.examples.shape)
 
     def __len__(self):
         return len(self.examples)
@@ -128,17 +131,62 @@ class TextDataset(Dataset):
         return torch.tensor(self.examples[item], dtype=torch.long)
 
 
-def SplitChainDataset(
-    tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
-):
-    path, fname = os.path.split(file_path)
-    datadir = os.path.join(path, "dataset-" + fname.split(".")[0])
-    files = sorted(glob.glob(f"{datadir}/*"))
-    files = [f for f in files if "_cached_lm_" not in f]
-    print("loading " + str(files))
+BLACKLIST = type, ModuleType, FunctionType
 
-    datasets = [TextDataset(tokenizer, args, f, block_size) for f in files]
-    return ChainDataset(datasets)
+
+def getsize(obj):
+    """sum size of object & members."""
+    if isinstance(obj, BLACKLIST):
+        raise TypeError("getsize() does not take argument of type: " + str(type(obj)))
+    seen_ids = set()
+    size = 0
+    objects = [obj]
+    while objects:
+        need_referents = []
+        for obj in objects:
+            if not isinstance(obj, BLACKLIST) and id(obj) not in seen_ids:
+                seen_ids.add(id(obj))
+                size += sys.getsizeof(obj)
+                need_referents.append(obj)
+        objects = gc.get_referents(*need_referents)
+    return size
+
+
+class SplitChainDataset(Dataset):
+    def __init__(
+        self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
+    ):
+        path, fname = os.path.split(file_path)
+        datadir = os.path.join(path, "dataset-" + fname.split(".")[0])
+        files = sorted(glob.glob(f"{datadir}/*"))
+        files = [f for f in files if "_cached_lm_" not in f]
+        print("loading " + str(files))
+
+        self.datasets: list[TextDataset] = []
+        for f in files:
+            dset = TextDataset(tokenizer, args, f, block_size)
+            self.datasets.append(dset)
+
+        datasets = self.datasets
+        half = len(self) // 2
+        self.datasets = []
+        for dset in datasets:
+            self.datasets.append(dset)
+            if len(self) > half:
+                break
+        print("Final length:", len(self))
+
+    def __len__(self):
+        return sum(len(dset) for dset in self.datasets)
+
+    def __getitem__(self, index):
+        for dset in self.datasets:
+            if index >= (l := len(dset)):
+                index -= l
+            else:
+                return dset[index]
+
+        raise ValueError("unreachable")
 
 
 # class LineByLineTextDataset(Dataset):
@@ -290,7 +338,7 @@ def train(
     print("""Train the model""")
 
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter()
+        tb_writer = SummaryWriter(os.path.join('path', args.output_dir))
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
 
@@ -469,7 +517,7 @@ def train(
             inputs = inputs.to(args.device)
             labels = labels.to(args.device)
             model.train()
-            assert isinstance(model, BertForMaskedLM), type(model)
+            # assert isinstance(model, BertForMaskedLM), type(model)
             outputs = model(inputs, masked_lm_labels=labels)
 
             # TODO: figure out what the output is
@@ -745,7 +793,7 @@ def main():
 
     parser.add_argument(
         "--per_gpu_train_batch_size",
-        default=4,
+        default=24,
         type=int,
         help="Batch size per GPU/CPU for training.",
     )
@@ -837,7 +885,7 @@ def main():
     parser.add_argument(
         "--fp16_opt_level",
         type=str,
-        default="O1",
+        default="O2",
         help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
         "See details at https://nvidia.github.io/apex/amp.html",
     )
@@ -1031,7 +1079,8 @@ def main():
         )  # Take care of distributed/parallel training
         # FIXME
         torch.save(
-            model_to_save.cpu().state_dict(), open(args.output_dir + "/model.pkl", "wb")
+            model_to_save.cpu().state_dict(),
+            open(args.output_dir + "/my-custom-model.pkl", "wb"),
         )
         # model_to_save.save_pretrained(args.output_dir)
         tokenizer.save_pretrained(args.output_dir)
