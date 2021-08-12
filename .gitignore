@@ -146,5 +146,4 @@ cython_debug/
 /push-remote.sh
 /pull-remote.sh
 
-/glue/
-/dataset*/
+/*/

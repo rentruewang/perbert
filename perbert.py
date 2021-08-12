@@ -4,7 +4,11 @@ import numpy as np
 import torch
 from torch.nn import Softmax
 from transformers import BertModel, BertTokenizer
-from transformers.modeling_bert import BertForMaskedLM, BertSelfAttention
+from transformers.modeling_bert import (
+    BertForMaskedLM,
+    BertSelfAttention,
+    BertForSequenceClassification,
+)
 
 
 def PatchedBertSelfAttention(
@@ -34,7 +38,7 @@ def PatchedBertSelfAttention(
     ):
         "This part of code is adapted from the `BertSelfAttention` class. It's the patched `forward` of `BertSelfAttention`"
 
-        # assert isinstance(self, BertSelfAttention), type(self)
+        assert isinstance(self, BertSelfAttention), type(self)
 
         query = self.query(hidden_states)
         self._lagrange = 0
@@ -110,7 +114,7 @@ def PatchedBert(
     orthogonal: float,
     lmbda: float = 0.0,
 ):
-    # assert isinstance(model, BertModel), type(model)
+    assert isinstance(model, BertModel), type(model)
     for layer in model.encoder.layer:
         layer.attention.self = PatchedBertSelfAttention(
             layer.attention.self, blind_spot, lmbda
@@ -136,7 +140,18 @@ def PatchedBertForMaskedLM(
     orthogonal: float,
     lmbda: float = 0.0,
 ):
-    # assert isinstance(model, BertForMaskedLM), type(model)
+    assert isinstance(model, BertForMaskedLM), type(model)
+    model.bert = PatchedBert(model.bert, blind_spot, orthogonal, lmbda)
+    return model
+
+
+def PatchedBertForSequenceClassification(
+    model: BertForSequenceClassification,
+    blind_spot: bool,
+    orthogonal: float,
+    lmbda: float = 0.0,
+):
+    assert isinstance(model, BertForSequenceClassification), type(model)
     model.bert = PatchedBert(model.bert, blind_spot, orthogonal, lmbda)
     return model
 

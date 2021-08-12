@@ -338,7 +338,7 @@ def train(
     print("""Train the model""")
 
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter(os.path.join('path', args.output_dir))
+        tb_writer = SummaryWriter(os.path.join("runs", args.output_dir))
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
 
@@ -901,14 +901,14 @@ def main():
     parser.add_argument(
         "--server_port", type=str, default="", help="For distant debugging."
     )
-    # FIXME: options
+    # XXX: options
     parser.add_argument("--custom", action="store_true")
     parser.add_argument("--blind", action="store_true")
     parser.add_argument("--ortho", action="store_true")
     parser.add_argument("--lmbda", type=float, default=0.0)
     args = parser.parse_args()
 
-    # FIXME: no MLM
+    # XXX: no MLM
     # if (
     #     args.model_type in ["bert", "roberta", "distilbert", "camembert"]
     #     and not args.mlm
@@ -1026,7 +1026,7 @@ def main():
         args.block_size = min(args.block_size, tokenizer.max_len)
 
     if args.model_name_or_path:
-        # FIXME: Change the model used
+        # XXX: Change the model used
         print("This part is run")
         model = AutoModelWithLMHead.from_pretrained(
             args.model_name_or_path,
@@ -1077,7 +1077,7 @@ def main():
         model_to_save = (
             model.module if hasattr(model, "module") else model
         )  # Take care of distributed/parallel training
-        # FIXME
+        # XXX
         torch.save(
             model_to_save.cpu().state_dict(),
             open(args.output_dir + "/my-custom-model.pkl", "wb"),
@@ -1089,7 +1089,7 @@ def main():
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
 
         # Load a trained model and vocabulary that you have fine-tuned
-        model = AutoModelWithLMHead.from_pretrained(args.output_dir)
+        # model = AutoModelWithLMHead.from_pretrained(args.output_dir)
         # tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
         tokenizer = BertTokenizerFast.from_pretrained(args.output_dir)
         model.to(args.device)
