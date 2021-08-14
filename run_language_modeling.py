@@ -123,6 +123,7 @@ class TextDataset(Dataset):
     def __getitem__(self, item):
         return torch.tensor(self.examples[item], dtype=torch.long)
 
+
 class LineByLineTextDataset(Dataset):
     def __init__(
         self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
@@ -149,6 +150,7 @@ class LineByLineTextDataset(Dataset):
 
     def __getitem__(self, i):
         return torch.tensor(self.examples[i], dtype=torch.long)
+
 
 # XXX: split dataset
 class SplitChainDataset(Dataset):
@@ -186,6 +188,7 @@ class SplitChainDataset(Dataset):
                 return dset[index]
 
         raise ValueError("unreachable")
+
 
 def load_and_cache_examples(args, tokenizer, evaluate=False):
     file_path = args.eval_data_file if evaluate else args.train_data_file
@@ -483,11 +486,8 @@ def train(
             inputs = inputs.to(args.device)
             labels = labels.to(args.device)
             model.train()
-            outputs = (
-                model(inputs, masked_lm_labels=labels)
-                if args.mlm
-                else model(inputs, labels=labels)
-            )
+            outputs = model(inputs, masked_lm_labels=labels)
+
             loss = outputs[
                 0
             ]  # model outputs are always tuple in transformers (see doc)

@@ -27,20 +27,20 @@ class DropSoftmax(Module):
         self._dim_by_me = dim
         self._is_train_by_me = False
 
-    def forward(self, *tensors):
+    def forward(self, *tensors, attention_mask=None):
         if len(tensors) == 1:
-            return self.single_forward(*tensors)
+            return self.single_forward(*tensors, attention_mask)
 
-        return [self.single_forward(t) for t in tensors]
+        return [self.single_forward(t, attention_mask) for t in tensors]
 
-    def single_forward(self, tensor):
+    def single_forward(self, tensor, attention_mask):
         if not self._is_train_by_me:
             return F.softmax(tensor, dim=self._dim_by_me)
 
         remaining = torch.empty_like(tensor).uniform_(0, 1) >= self._p_by_me
         remaining = remaining.float()
-        remaining[remaining == 0] = -np.inf
-        tensor = tensor * remaining
+        remaining[remaining == 0] = -10000
+        tensor = tensor + remaining + attention_mask
         out = F.softmax(tensor, dim=self._dim_by_me)
         return out
 
@@ -57,11 +57,11 @@ def PatchedBertSelfAttention(
     model: BertSelfAttention,
     version=0,
 ):
-    blindspot = version in [1, 3]
-    dropsoft = version in [2, 3]
-
     if version == 0:
         return model
+
+    blindspot = version in [1, 3]
+    dropsoft = version in [2, 3]
 
     if dropsoft:
         model.dropsoft = DropSoftmax(0.5, -1)
@@ -115,7 +115,7 @@ def PatchedBertSelfAttention(
 
         # Normalize the attention scores to probabilities and dropout, as in the original transformer paper.
         if dropsoft:
-            attn_probs = self.dropsoft(attention_scores)
+            attn_probs = self.dropsoft(attention_scores, attention_mask=attention_mask)
         else:
             attn_probs = Softmax(dim=-1)(attention_scores)
             attn_probs = self.dropout(attn_probs)
@@ -179,8 +179,7 @@ def PatchedBertForSequenceClassification(
 
 if __name__ == "__main__":
     bert = BertModel.from_pretrained("bert-base-uncased")
-    bert = PatchedBert(bert, True, 1, 1)
-    print(hasattr(bert, "model"))
+    bert = PatchedBert(bert, 3)
 
     tnk = BertTokenizer.from_pretrained("bert-base-uncased")
     tok = tnk.tokenize("hello, world.")
@@ -196,3 +195,6 @@ if __name__ == "__main__":
         pad_to_max_length=True,
     )
     print(tok1)
+    bert.train()
+    o = bert(**tok1)
+    print(o)
