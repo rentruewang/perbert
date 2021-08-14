@@ -27,20 +27,20 @@ class DropSoftmax(Module):
         self._dim_by_me = dim
         self._is_train_by_me = False
 
-    def forward(self, *tensors, attention_mask=None):
+    def forward(self, *tensors):
         if len(tensors) == 1:
-            return self.single_forward(*tensors, attention_mask)
+            return self.single_forward(*tensors)
 
-        return [self.single_forward(t, attention_mask) for t in tensors]
+        return [self.single_forward(t) for t in tensors]
 
-    def single_forward(self, tensor, attention_mask):
+    def single_forward(self, tensor):
         if not self._is_train_by_me:
             return F.softmax(tensor, dim=self._dim_by_me)
 
-        remaining = torch.empty_like(tensor).uniform_(0, 1) >= self._p_by_me
-        remaining = remaining.float()
-        remaining[remaining == 0] = -10000
-        tensor = tensor + remaining + attention_mask
+        select = torch.empty_like(tensor).uniform_(0, 1) < self._p_by_me
+        remaining = torch.zeros_like(tensor)
+        remaining[select] = -10000
+        tensor = tensor + remaining
         out = F.softmax(tensor, dim=self._dim_by_me)
         return out
 
@@ -105,9 +105,14 @@ def PatchedBertSelfAttention(
                 diag.unsqueeze_(0)
 
             assert attention_scores.shape[-1] == attention_scores.shape[-2]
-            blind_spot_mask = 1.0 - diag
+            blind_spot_mask = -10000 * diag
             assert blind_spot_mask.ndim == attention_scores.ndim
-            attention_scores = attention_scores * blind_spot_mask
+            attention_scores = attention_scores
+
+            if attention_mask is None:
+                attention_mask = blind_spot_mask
+            else:
+                attention_mask = attention_mask + blind_spot_mask
 
         attention_scores = attention_scores / np.sqrt(self.attention_head_size)
         if attention_mask is not None:
@@ -115,7 +120,7 @@ def PatchedBertSelfAttention(
 
         # Normalize the attention scores to probabilities and dropout, as in the original transformer paper.
         if dropsoft:
-            attn_probs = self.dropsoft(attention_scores, attention_mask=attention_mask)
+            attn_probs = self.dropsoft(attention_scores)
         else:
             attn_probs = Softmax(dim=-1)(attention_scores)
             attn_probs = self.dropout(attn_probs)
