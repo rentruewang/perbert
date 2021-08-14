@@ -2,31 +2,69 @@ from types import MethodType
 
 import numpy as np
 import torch
-from torch.nn import Softmax
+from torch.nn import Module, Softmax
+from torch.nn import functional as F
 from transformers import BertModel, BertTokenizer
 from transformers.modeling_bert import (
     BertForMaskedLM,
-    BertSelfAttention,
     BertForSequenceClassification,
+    BertSelfAttention,
 )
+
+# NOTE
+# version 0: original
+# version 1: blind spot
+# version 2: softmax + dropout
+# version 3: version 1 + version 2
+
+
+class DropSoftmax(Module):
+    def __init__(self, p, dim) -> None:
+        super().__init__()
+
+        assert 0 <= p <= 1, p
+        self._p_by_me = p
+        self._dim_by_me = dim
+        self._is_train_by_me = False
+
+    def forward(self, *tensors):
+        if len(tensors) == 1:
+            return self.single_forward(*tensors)
+
+        return [self.single_forward(t) for t in tensors]
+
+    def single_forward(self, tensor):
+        if not self._is_train_by_me:
+            return F.softmax(tensor, dim=self._dim_by_me)
+
+        remaining = torch.empty_like(tensor).uniform_(0, 1) >= self._p_by_me
+        remaining = remaining.float()
+        remaining[remaining == 0] = -np.inf
+        tensor = tensor * remaining
+        out = F.softmax(tensor, dim=self._dim_by_me)
+        return out
+
+    def train(self, is_train=True):
+        self._is_train_by_me = is_train
+        return self
+
+    def eval(self):
+        self._is_train_by_me = False
+        return self
 
 
 def PatchedBertSelfAttention(
     model: BertSelfAttention,
-    blind_spot: bool,
-    lmbda: float = 0.0,
+    version=0,
 ):
-    def lagrange(self):
-        """
-        Additional losses that the patches generates.
+    blindspot = version in [1, 3]
+    dropsoft = version in [2, 3]
 
-        Returns
-        -
+    if version == 0:
+        return model
 
-        A scalar tensor that propagate loss values to the model.
-        """
-
-        return self._lagrange
+    if dropsoft:
+        model.dropsoft = DropSoftmax(0.5, -1)
 
     def patch_forward(
         self: BertSelfAttention,
@@ -41,7 +79,6 @@ def PatchedBertSelfAttention(
         assert isinstance(self, BertSelfAttention), type(self)
 
         query = self.query(hidden_states)
-        self._lagrange = 0
 
         # If this is instantiated as a cross-attention module, the keys
         # and values come from an encoder; the attention mask needs to be
@@ -62,7 +99,7 @@ def PatchedBertSelfAttention(
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = query @ key.transpose(-1, -2)
 
-        if blind_spot:
+        if blindspot:
             diag = torch.eye(attention_scores.shape[-1], device=attention_scores.device)
             for _ in range(attention_scores.ndim - diag.ndim):
                 diag.unsqueeze_(0)
@@ -76,17 +113,12 @@ def PatchedBertSelfAttention(
         if attention_mask is not None:
             attention_scores = attention_scores + attention_mask
 
-        # if lmbda != 0:
-        #     diag = torch.eye(attention_scores.shape[-1], device=attention_scores.device)
-        #     for _ in range(attention_scores.ndim - diag.ndim):
-        #         diag.unsqueeze_(0)
-
-        #     assert diag.ndim == attention_scores.ndim
-        #     self._lagrange = self._lagrange + (lmbda * diag * attention_scores).sum()
-
         # Normalize the attention scores to probabilities and dropout, as in the original transformer paper.
-        attn_probs = Softmax(dim=-1)(attention_scores)
-        attn_probs = self.dropout(attn_probs)
+        if dropsoft:
+            attn_probs = self.dropsoft(attention_scores)
+        else:
+            attn_probs = Softmax(dim=-1)(attention_scores)
+            attn_probs = self.dropout(attn_probs)
 
         # Mask heads if we want to
         if head_mask is not None:
@@ -101,58 +133,47 @@ def PatchedBertSelfAttention(
         return (context, attn_probs) if self.output_attentions else (context,)
 
     # Monkey patching the forward method.
-    model._lagrange = 0
     model.forward = MethodType(patch_forward, model)
-    model.lagrange = MethodType(lagrange, model)
 
     return model
 
 
 def PatchedBert(
     model: BertModel,
-    blind_spot: bool,
-    orthogonal: float,
-    lmbda: float = 0.0,
+    version=0,
 ):
+    if version == 0:
+        return model
+
     assert isinstance(model, BertModel), type(model)
     for layer in model.encoder.layer:
-        layer.attention.self = PatchedBertSelfAttention(
-            layer.attention.self, blind_spot, lmbda
-        )
-
-    def lag_method(self):
-        return sum(layer.attention.self.lagrange() for layer in self.encoder.layer)
-
-    def ortho_method(self):
-        weight = self.pooler.dense.weight
-        matmul = weight @ weight.T
-        return orthogonal * (torch.eye(matmul.shape[-1]) - matmul).pow(2).sum()
-
-    model.lagrange = MethodType(lag_method, model)
-    model.orthogonal = MethodType(ortho_method, model)
-
+        layer.attention.self = PatchedBertSelfAttention(layer.attention.self, version)
     return model
 
 
 def PatchedBertForMaskedLM(
     model: BertForMaskedLM,
-    blind_spot: bool = True,
-    orthogonal: float = 0.0,
-    lmbda: float = 0.0,
+    version=0,
 ):
+
+    if version == 0:
+        return model
+
     assert isinstance(model, BertForMaskedLM), type(model)
-    model.bert = PatchedBert(model.bert, blind_spot, orthogonal, lmbda)
+    model.bert = PatchedBert(model.bert, version)
     return model
 
 
 def PatchedBertForSequenceClassification(
     model: BertForSequenceClassification,
-    blind_spot: bool = True,
-    orthogonal: float = 0.0,
-    lmbda: float = 0.0,
+    version=0,
 ):
+
+    if version == 0:
+        return model
+
     assert isinstance(model, BertForSequenceClassification), type(model)
-    model.bert = PatchedBert(model.bert, blind_spot, orthogonal, lmbda)
+    model.bert = PatchedBert(model.bert, version)
     return model
 
 
@@ -175,16 +196,3 @@ if __name__ == "__main__":
         pad_to_max_length=True,
     )
     print(tok1)
-
-    out = bert(**tok1)
-    print(out)
-    print(len(out), list(o.shape for o in out))
-    print(bert.lagrange())
-    print(bert.orthogonal())
-
-    torch.save(bert.state_dict(), open("model.pkl", "wb"))
-    state_dict = torch.load(open("model.pkl", "rb"))
-    # print(bert_rec)
-    bert.load_state_dict(state_dict)
-    out2 = bert(**tok1)
-    print(out2)

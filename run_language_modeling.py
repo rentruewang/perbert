@@ -18,6 +18,8 @@ Fine-tuning the library models for language modeling on a text file (GPT, GPT-2,
 GPT and GPT-2 are fine-tuned using a causal language modeling (CLM) loss while BERT and RoBERTa are fine-tuned
 using a masked language modeling (MLM) loss.
 """
+
+
 import argparse
 import gc
 import glob
@@ -27,20 +29,12 @@ import pickle
 import random
 import re
 import shutil
-import sys
-from types import FunctionType, ModuleType
 from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import (
-    ChainDataset,
-    DataLoader,
-    Dataset,
-    RandomSampler,
-    SequentialSampler,
-)
+from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import (
@@ -49,8 +43,7 @@ from transformers import (
     AdamW,
     AutoConfig,
     AutoModelWithLMHead,
-    BertForMaskedLM,
-    BertTokenizerFast,
+    AutoTokenizer,
     PreTrainedModel,
     PreTrainedTokenizer,
     get_linear_schedule_with_warmup,
@@ -70,7 +63,7 @@ logger = logging.getLogger(__name__)
 MODEL_CONFIG_CLASSES = list(MODEL_WITH_LM_HEAD_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 
-
+# XXX: using numpy
 class TextDataset(Dataset):
     def __init__(
         self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
@@ -130,28 +123,34 @@ class TextDataset(Dataset):
     def __getitem__(self, item):
         return torch.tensor(self.examples[item], dtype=torch.long)
 
+class LineByLineTextDataset(Dataset):
+    def __init__(
+        self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
+    ):
+        assert os.path.isfile(file_path)
+        # Here, we do not cache the features, operating under the assumption
+        # that we will soon use fast multithreaded tokenizers from the
+        # `tokenizers` repo everywhere =)
+        logger.info("Creating features from dataset file at %s", file_path)
 
-BLACKLIST = type, ModuleType, FunctionType
+        with open(file_path, encoding="utf-8") as f:
+            lines = [
+                line
+                for line in f.read().splitlines()
+                if (len(line) > 0 and not line.isspace())
+            ]
 
+        self.examples = tokenizer.batch_encode_plus(
+            lines, add_special_tokens=True, max_length=block_size
+        )["input_ids"]
 
-def getsize(obj):
-    """sum size of object & members."""
-    if isinstance(obj, BLACKLIST):
-        raise TypeError("getsize() does not take argument of type: " + str(type(obj)))
-    seen_ids = set()
-    size = 0
-    objects = [obj]
-    while objects:
-        need_referents = []
-        for obj in objects:
-            if not isinstance(obj, BLACKLIST) and id(obj) not in seen_ids:
-                seen_ids.add(id(obj))
-                size += sys.getsizeof(obj)
-                need_referents.append(obj)
-        objects = gc.get_referents(*need_referents)
-    return size
+    def __len__(self):
+        return len(self.examples)
 
+    def __getitem__(self, i):
+        return torch.tensor(self.examples[i], dtype=torch.long)
 
+# XXX: split dataset
 class SplitChainDataset(Dataset):
     def __init__(
         self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
@@ -188,43 +187,12 @@ class SplitChainDataset(Dataset):
 
         raise ValueError("unreachable")
 
-
-# class LineByLineTextDataset(Dataset):
-#     def __init__(
-#         self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
-#     ):
-#         assert os.path.isfile(file_path)
-#         # Here, we do not cache the features, operating under the assumption
-#         # that we will soon use fast multithreaded tokenizers from the
-#         # `tokenizers` repo everywhere =)
-#         logger.info("Creating features from dataset file at %s", file_path)
-
-#         with open(file_path, encoding="utf-8") as f:
-#             lines = [
-#                 line
-#                 for line in f.read().splitlines()
-#                 if (len(line) > 0 and not line.isspace())
-#             ]
-
-#         self.examples = tokenizer.batch_encode_plus(
-#             lines, add_special_tokens=True, max_length=block_size
-#         )["input_ids"]
-#         raise NotImplementedError
-
-#     def __len__(self):
-#         return len(self.examples)
-
-#     def __getitem__(self, i):
-#         return torch.tensor(self.examples[i], dtype=torch.long)
-
-
 def load_and_cache_examples(args, tokenizer, evaluate=False):
     file_path = args.eval_data_file if evaluate else args.train_data_file
     if args.line_by_line:
-        # return LineByLineTextDataset(
-        #     tokenizer, args, file_path=file_path, block_size=args.block_size
-        # )
-        raise ValueError
+        return LineByLineTextDataset(
+            tokenizer, args, file_path=file_path, block_size=args.block_size
+        )
     else:
         return SplitChainDataset(
             tokenizer, args, file_path=file_path, block_size=args.block_size
@@ -290,7 +258,7 @@ def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -
 def mask_tokens(
     inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original."""
+    """ Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original. """
 
     if tokenizer.mask_token is None:
         raise ValueError(
@@ -335,8 +303,7 @@ def mask_tokens(
 def train(
     args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedTokenizer
 ) -> Tuple[int, float]:
-    print("""Train the model""")
-
+    """ Train the model """
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter(os.path.join("runs", args.output_dir))
 
@@ -499,7 +466,6 @@ def train(
         disable=args.local_rank not in [-1, 0],
     )
     set_seed(args)  # Added here for reproducibility
-    print("trange")
     for _ in train_iterator:
         epoch_iterator = tqdm(
             train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0]
@@ -511,18 +477,20 @@ def train(
                 steps_trained_in_current_epoch -= 1
                 continue
 
-            (inputs, labels) = (
+            inputs, labels = (
                 mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
             )
             inputs = inputs.to(args.device)
             labels = labels.to(args.device)
             model.train()
-            # assert isinstance(model, BertForMaskedLM), type(model)
-            outputs = model(inputs, masked_lm_labels=labels)
-
-            # TODO: figure out what the output is
-            loss = outputs[0]
-            # model outputs are always tuple in transformers (see doc)
+            outputs = (
+                model(inputs, masked_lm_labels=labels)
+                if args.mlm
+                else model(inputs, labels=labels)
+            )
+            loss = outputs[
+                0
+            ]  # model outputs are always tuple in transformers (see doc)
 
             if args.n_gpu > 1:
                 loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -572,38 +540,37 @@ def train(
                     )
                     logging_loss = tr_loss
 
-                # if (
-                #     args.local_rank in [-1, 0]
-                #     and args.save_steps > 0
-                #     and global_step % args.save_steps == 0
-                # ):
+                if (
+                    args.local_rank in [-1, 0]
+                    and args.save_steps > 0
+                    and global_step % args.save_steps == 0
+                ):
+                    checkpoint_prefix = "checkpoint"
+                    # Save model checkpoint
+                    output_dir = os.path.join(
+                        args.output_dir, "{}-{}".format(checkpoint_prefix, global_step)
+                    )
+                    os.makedirs(output_dir, exist_ok=True)
+                    model_to_save = (
+                        model.module if hasattr(model, "module") else model
+                    )  # Take care of distributed/parallel training
+                    model_to_save.save_pretrained(output_dir)
+                    tokenizer.save_pretrained(output_dir)
 
-                #     checkpoint_prefix = "checkpoint"
-                #     # Save model checkpoint
-                #     output_dir = os.path.join(
-                #         args.output_dir, "{}-{}".format(checkpoint_prefix, global_step)
-                #     )
-                #     os.makedirs(output_dir, exist_ok=True)
-                #     model_to_save = (
-                #         model.module if hasattr(model, "module") else model
-                #     )  # Take care of distributed/parallel training
-                #     model_to_save.save_pretrained(output_dir)
-                #     tokenizer.save_pretrained(output_dir)
+                    torch.save(args, os.path.join(output_dir, "training_args.bin"))
+                    logger.info("Saving model checkpoint to %s", output_dir)
 
-                #     torch.save(args, os.path.join(output_dir, "training_args.bin"))
-                #     logger.info("Saving model checkpoint to %s", output_dir)
+                    _rotate_checkpoints(args, checkpoint_prefix)
 
-                #     _rotate_checkpoints(args, checkpoint_prefix)
-
-                #     torch.save(
-                #         optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
-                #     )
-                #     torch.save(
-                #         scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
-                #     )
-                #     logger.info(
-                #         "Saving optimizer and scheduler states to %s", output_dir
-                #     )
+                    torch.save(
+                        optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
+                    )
+                    torch.save(
+                        scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
+                    )
+                    logger.info(
+                        "Saving optimizer and scheduler states to %s", output_dir
+                    )
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
@@ -614,8 +581,6 @@ def train(
 
     if args.local_rank in [-1, 0]:
         tb_writer.close()
-
-    print("done training")
 
     return global_step, tr_loss / global_step
 
@@ -793,7 +758,7 @@ def main():
 
     parser.add_argument(
         "--per_gpu_train_batch_size",
-        default=24,
+        default=4,
         type=int,
         help="Batch size per GPU/CPU for training.",
     )
@@ -885,7 +850,7 @@ def main():
     parser.add_argument(
         "--fp16_opt_level",
         type=str,
-        default="O2",
+        default="O1",
         help="For fp16: Apex AMP optimization level selected in ['O0', 'O1', 'O2', and 'O3']."
         "See details at https://nvidia.github.io/apex/amp.html",
     )
@@ -901,14 +866,12 @@ def main():
     parser.add_argument(
         "--server_port", type=str, default="", help="For distant debugging."
     )
-    # XXX: options
-    parser.add_argument("--custom", action="store_true")
-    parser.add_argument("--blind", action="store_true")
-    parser.add_argument("--ortho", action="store_true")
-    parser.add_argument("--lmbda", type=float, default=0.0)
+    # XXX: custom arguments
+    parser.add_argument("--model_version", type=int, required=True)
+
     args = parser.parse_args()
 
-    # XXX: no MLM
+    # XXX: no error
     # if (
     #     args.model_type in ["bert", "roberta", "distilbert", "camembert"]
     #     and not args.mlm
@@ -1005,12 +968,11 @@ def main():
         )
 
     if args.tokenizer_name:
-        print("fast tokenizer")
-        tokenizer = BertTokenizerFast.from_pretrained(
+        tokenizer = AutoTokenizer.from_pretrained(
             args.tokenizer_name, cache_dir=args.cache_dir
         )
     elif args.model_name_or_path:
-        tokenizer = BertTokenizerFast.from_pretrained(
+        tokenizer = AutoTokenizer.from_pretrained(
             args.model_name_or_path, cache_dir=args.cache_dir
         )
     else:
@@ -1026,22 +988,18 @@ def main():
         args.block_size = min(args.block_size, tokenizer.max_len)
 
     if args.model_name_or_path:
-        # XXX: Change the model used
-        print("This part is run")
         model = AutoModelWithLMHead.from_pretrained(
             args.model_name_or_path,
-            from_tf=False,
+            from_tf=bool(".ckpt" in args.model_name_or_path),
             config=config,
             cache_dir=args.cache_dir,
         )
-        print("Using " + str(device))
-        print("Type of model: ", type(model))
-        if args.custom:
-            print("running custom code")
-            model = PatchedBertForMaskedLM(model, args.blind, args.ortho, args.lmbda)
     else:
         logger.info("Training new model from scratch")
         model = AutoModelWithLMHead.from_config(config)
+
+    # XXX: custom model
+    model = PatchedBertForMaskedLM(model, args.model_version)
 
     model.to(args.device)
 
@@ -1051,9 +1009,7 @@ def main():
     logger.info("Training/evaluation parameters %s", args)
 
     # Training
-    print("do train: " + str(args.do_train))
     if args.do_train:
-        print("start training")
         if args.local_rank not in [-1, 0]:
             torch.distributed.barrier()  # Barrier to make sure only the first process in distributed training process the dataset, and the others will use the cache
 
@@ -1077,22 +1033,17 @@ def main():
         model_to_save = (
             model.module if hasattr(model, "module") else model
         )  # Take care of distributed/parallel training
-        # XXX
-        torch.save(
-            model_to_save.cpu().state_dict(),
-            open(args.output_dir + "/my-custom-model.pkl", "wb"),
-        )
-        # model_to_save.save_pretrained(args.output_dir)
+        model_to_save.save_pretrained(args.output_dir)
         tokenizer.save_pretrained(args.output_dir)
 
         # Good practice: save your training arguments together with the trained model
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
 
         # Load a trained model and vocabulary that you have fine-tuned
+        # XXX: don't reload
         # model = AutoModelWithLMHead.from_pretrained(args.output_dir)
         # tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
-        tokenizer = BertTokenizerFast.from_pretrained(args.output_dir)
-        model.to(args.device)
+        # model.to(args.device)
 
     # Evaluation
     results = {}

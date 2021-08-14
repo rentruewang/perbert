@@ -1,5 +1,5 @@
 run_glue () {
-    python glue_original.py \
+    python run_glue.py \
         --model_type bert \
         --model_name_or_path bert-base-uncased \
         --tokenizer_name=bert-base-uncased \

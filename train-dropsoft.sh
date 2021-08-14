@@ -1,6 +1,6 @@
 export TRAIN_FILE=$1
 python run_language_modeling.py \
-    --output_dir=bert-normal \
+    --output_dir=bert-dropsoft \
     --model_type=bert-base-uncased \
     --model_name_or_path=bert-base-uncased \
     --tokenizer_name=bert-base-uncased \
@@ -8,4 +8,4 @@ python run_language_modeling.py \
     --per_gpu_train_batch_size 24 \
     --do_train \
     --train_data_file=$TRAIN_FILE \
-    --mlm --model_version 0
+    --model_version 2
