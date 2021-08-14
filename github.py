@@ -12,8 +12,6 @@ message = (
 
 repo = Repo(".")
 
-repo.remotes.origin.pull()
-
 repo.git.add(".")
 
 repo.index.commit(message)

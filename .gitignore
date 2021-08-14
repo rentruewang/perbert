@@ -141,9 +141,5 @@ cython_debug/
 
 .DS_Store
 
-/training.txt
-/connect.sh
-/push-remote.sh
-/pull-remote.sh
-
 /*/
+/*.log

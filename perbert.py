@@ -136,8 +136,8 @@ def PatchedBert(
 
 def PatchedBertForMaskedLM(
     model: BertForMaskedLM,
-    blind_spot: bool,
-    orthogonal: float,
+    blind_spot: bool = True,
+    orthogonal: float = 0.0,
     lmbda: float = 0.0,
 ):
     assert isinstance(model, BertForMaskedLM), type(model)
@@ -147,8 +147,8 @@ def PatchedBertForMaskedLM(
 
 def PatchedBertForSequenceClassification(
     model: BertForSequenceClassification,
-    blind_spot: bool,
-    orthogonal: float,
+    blind_spot: bool = True,
+    orthogonal: float = 0.0,
     lmbda: float = 0.0,
 ):
     assert isinstance(model, BertForSequenceClassification), type(model)

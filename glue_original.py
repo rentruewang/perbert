@@ -14,11 +14,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ Finetuning the library models for sequence classification on GLUE (Bert, XLM, XLNet, RoBERTa, Albert, XLM-RoBERTa)."""
-# NOTE
-# 1. tensorboard
-# 2. load model
-# 3. device
-# 4. evaluate (no need to load things)
+
 
 import argparse
 import glob
@@ -32,6 +28,7 @@ import torch
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
+
 from transformers import (
     MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
     WEIGHTS_NAME,
@@ -48,7 +45,6 @@ from transformers import (
 from transformers import glue_output_modes as output_modes
 from transformers import glue_processors as processors
 
-from perbert import *
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -78,7 +74,7 @@ def set_seed(args):
 def train(args, train_dataset, model, tokenizer):
     """Train the model"""
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter(os.path.join("runs", f"glue-{args.output_dir}"))
+        tb_writer = SummaryWriter()
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_sampler = (
@@ -155,6 +151,19 @@ def train(args, train_dataset, model, tokenizer):
             model, optimizer, opt_level=args.fp16_opt_level
         )
 
+    # multi-gpu training (should be after apex fp16 initialization)
+    if args.n_gpu > 1:
+        model = torch.nn.DataParallel(model)
+
+    # Distributed training (should be after apex fp16 initialization)
+    if args.local_rank != -1:
+        model = torch.nn.parallel.DistributedDataParallel(
+            model,
+            device_ids=[args.local_rank],
+            output_device=args.local_rank,
+            find_unused_parameters=True,
+        )
+
     # Train!
     logger.info("***** Running training *****")
     logger.info("  Num examples = %d", len(train_dataset))
@@ -212,13 +221,13 @@ def train(args, train_dataset, model, tokenizer):
             train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0]
         )
         for step, batch in enumerate(epoch_iterator):
-            model.train()
 
             # Skip past any already trained steps if resuming training
             if steps_trained_in_current_epoch > 0:
                 steps_trained_in_current_epoch -= 1
                 continue
 
+            model.train()
             batch = tuple(t.to(args.device) for t in batch)
             inputs = {
                 "input_ids": batch[0],
@@ -226,13 +235,13 @@ def train(args, train_dataset, model, tokenizer):
                 "labels": batch[3],
             }
             if args.model_type != "distilbert":
-                inputs["token_type_ids"] = batch[2]
-                # (
-                #     batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None
-                # )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+                inputs["token_type_ids"] = (
+                    batch[2] if args.model_type in ["bert", "xlnet", "albert"] else None
+                )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
             outputs = model(**inputs)
-            loss = outputs[0]
-            # model outputs are always tuple in transformers (see doc)
+            loss = outputs[
+                0
+            ]  # model outputs are always tuple in transformers (see doc)
 
             if args.n_gpu > 1:
                 loss = loss.mean()  # mean() to average on multi-gpu parallel training
@@ -289,35 +298,35 @@ def train(args, train_dataset, model, tokenizer):
                         tb_writer.add_scalar(key, value, global_step)
                     print(json.dumps({**logs, **{"step": global_step}}))
 
-                # if (
-                #     args.local_rank in [-1, 0]
-                #     and args.save_steps > 0
-                #     and global_step % args.save_steps == 0
-                # ):
-                #     # Save model checkpoint
-                #     output_dir = os.path.join(
-                #         args.output_dir, "checkpoint-{}".format(global_step)
-                #     )
-                #     if not os.path.exists(output_dir):
-                #         os.makedirs(output_dir)
-                #     model_to_save = (
-                #         model.module if hasattr(model, "module") else model
-                #     )  # Take care of distributed/parallel training
-                #     model_to_save.save_pretrained(output_dir)
-                #     tokenizer.save_pretrained(output_dir)
+                if (
+                    args.local_rank in [-1, 0]
+                    and args.save_steps > 0
+                    and global_step % args.save_steps == 0
+                ):
+                    # Save model checkpoint
+                    output_dir = os.path.join(
+                        args.output_dir, "checkpoint-{}".format(global_step)
+                    )
+                    if not os.path.exists(output_dir):
+                        os.makedirs(output_dir)
+                    model_to_save = (
+                        model.module if hasattr(model, "module") else model
+                    )  # Take care of distributed/parallel training
+                    model_to_save.save_pretrained(output_dir)
+                    tokenizer.save_pretrained(output_dir)
 
-                #     torch.save(args, os.path.join(output_dir, "training_args.bin"))
-                #     logger.info("Saving model checkpoint to %s", output_dir)
+                    torch.save(args, os.path.join(output_dir, "training_args.bin"))
+                    logger.info("Saving model checkpoint to %s", output_dir)
 
-                #     torch.save(
-                #         optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
-                #     )
-                #     torch.save(
-                #         scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
-                #     )
-                #     logger.info(
-                #         "Saving optimizer and scheduler states to %s", output_dir
-                #     )
+                    torch.save(
+                        optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
+                    )
+                    torch.save(
+                        scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
+                    )
+                    logger.info(
+                        "Saving optimizer and scheduler states to %s", output_dir
+                    )
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
@@ -359,6 +368,10 @@ def evaluate(args, model, tokenizer, prefix=""):
             eval_dataset, sampler=eval_sampler, batch_size=args.eval_batch_size
         )
 
+        # multi-gpu eval
+        if args.n_gpu > 1 and not isinstance(model, torch.nn.DataParallel):
+            model = torch.nn.DataParallel(model)
+
         # Eval!
         logger.info("***** Running evaluation {} *****".format(prefix))
         logger.info("  Num examples = %d", len(eval_dataset))
@@ -382,8 +395,7 @@ def evaluate(args, model, tokenizer, prefix=""):
                         batch[2]
                         if args.model_type in ["bert", "xlnet", "albert"]
                         else None
-                    )
-                    # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
+                    )  # XLM, DistilBERT, RoBERTa, and XLM-RoBERTa don't use segment_ids
                 outputs = model(**inputs)
                 tmp_eval_loss, logits = outputs[:2]
 
@@ -671,9 +683,6 @@ def main():
     parser.add_argument(
         "--server_port", type=str, default="", help="For distant debugging."
     )
-
-    # XXX
-    parser.add_argument("--custom", action="store_true")
     args = parser.parse_args()
 
     if (
@@ -710,7 +719,7 @@ def main():
         device = torch.device("cuda", args.local_rank)
         torch.distributed.init_process_group(backend="nccl")
         args.n_gpu = 1
-    args.device = torch.device("cuda")
+    args.device = device
 
     # Setup logging
     logging.basicConfig(
@@ -755,26 +764,12 @@ def main():
         do_lower_case=args.do_lower_case,
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
-
-    # XXX
-    if args.custom:
-        trained_model = BertForMaskedLM(config)
-        trained_model = PatchedBertForMaskedLM(trained_model)
-        STATE = torch.load(open("bert-blind/my-custom-model.pkl", "rb"))
-        trained_model.load_state_dict(STATE)
-        model = AutoModelForSequenceClassification.from_pretrained("bert-base-uncased")
-        model.bert = trained_model.bert
-    else:
-        model = AutoModelForSequenceClassification.from_pretrained(
-            args.model_name_or_path,
-            from_tf=False,
-            config=config,
-            cache_dir=args.cache_dir if args.cache_dir else None,
-        )
-        trained_model = BertForMaskedLM(config)
-        STATE = torch.load(open("bert/my-custom-model.pkl", "rb"))
-        trained_model.load_state_dict(STATE)
-        model.bert = trained_model.bert
+    model = AutoModelForSequenceClassification.from_pretrained(
+        args.model_name_or_path,
+        from_tf=bool(".ckpt" in args.model_name_or_path),
+        config=config,
+        cache_dir=args.cache_dir if args.cache_dir else None,
+    )
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -809,19 +804,43 @@ def main():
         # Good practice: save your training arguments together with the trained model
         torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
 
+        # Load a trained model and vocabulary that you have fine-tuned
+        model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)
+        tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
+        model.to(args.device)
+
     # Evaluation
     results = {}
     if args.do_eval and args.local_rank in [-1, 0]:
         tokenizer = AutoTokenizer.from_pretrained(
             args.output_dir, do_lower_case=args.do_lower_case
         )
-        result = evaluate(args, model, tokenizer, prefix="")
-        result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
-        results.update(result)
+        checkpoints = [args.output_dir]
+        if args.eval_all_checkpoints:
+            checkpoints = list(
+                os.path.dirname(c)
+                for c in sorted(
+                    glob.glob(args.output_dir + "/**/" + WEIGHTS_NAME, recursive=True)
+                )
+            )
+            logging.getLogger("transformers.modeling_utils").setLevel(
+                logging.WARN
+            )  # Reduce logging
+        logger.info("Evaluate the following checkpoints: %s", checkpoints)
+        for checkpoint in checkpoints:
+            global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
+            prefix = (
+                checkpoint.split("/")[-1] if checkpoint.find("checkpoint") != -1 else ""
+            )
+
+            model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
+            model.to(args.device)
+            result = evaluate(args, model, tokenizer, prefix=prefix)
+            result = dict((k + "_{}".format(global_step), v) for k, v in result.items())
+            results.update(result)
 
     return results
 
 
 if __name__ == "__main__":
-    results = main()
-    print(results)
+    main()
