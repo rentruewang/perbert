@@ -123,7 +123,7 @@ def PatchedBertSelfAttention(
             attn_probs = self.dropsoft(attention_scores)
         else:
             attn_probs = Softmax(dim=-1)(attention_scores)
-            attn_probs = self.dropout(attn_probs)
+        attn_probs = self.dropout(attn_probs)
 
         # Mask heads if we want to
         if head_mask is not None:
