@@ -1,7 +1,7 @@
 run_glue () {
     python run_glue.py \
         --model_type bert \
-        --model_name_or_path bert-normal \
+        --model_name_or_path bert-dropsoft \
         --tokenizer_name=bert-base-uncased \
         --task_name $1 \
         --do_train \
@@ -12,9 +12,9 @@ run_glue () {
         --per_gpu_train_batch_size 16 \
         --learning_rate 2e-5 \
         --num_train_epochs 3.0 \
-        --output_dir bert-glue-original-$1 \
+        --output_dir bert-dropsoft-glue-original-$1 \
         --save_steps 100000000 \
-        --model_version 0
+        --model_version 2
 }
 
 run_glue CoLA
