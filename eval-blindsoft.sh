@@ -7,7 +7,7 @@ run_glue () {
         --do_train \
         --do_eval \
         --do_lower_case \
-        --data_dir /work/b06901038/glue/$1 \
+        --data_dir glue/$1 \
         --max_seq_length 128 \
         --per_gpu_train_batch_size 16 \
         --learning_rate 2e-5 \
