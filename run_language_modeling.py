@@ -261,7 +261,7 @@ def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -
 def mask_tokens(
     inputs: torch.Tensor, tokenizer: PreTrainedTokenizer, args
 ) -> Tuple[torch.Tensor, torch.Tensor]:
-    """ Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original. """
+    """Prepare masked tokens inputs/labels for masked language modeling: 80% MASK, 10% random, 10% original."""
 
     if tokenizer.mask_token is None:
         raise ValueError(
@@ -306,7 +306,7 @@ def mask_tokens(
 def train(
     args, train_dataset, model: PreTrainedModel, tokenizer: PreTrainedTokenizer
 ) -> Tuple[int, float]:
-    """ Train the model """
+    """Train the model"""
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter(os.path.join("runs", args.output_dir))
 
