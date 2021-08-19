@@ -480,9 +480,14 @@ def train(
                 steps_trained_in_current_epoch -= 1
                 continue
 
-            inputs, labels = (
-                mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
-            )
+            if "mlmpair" in args.patches:
+                bcl = batch.clone()
+                (_, labels) = mask_tokens(batch, tokenizer, args)
+                inputs = bcl
+            else:
+                inputs, labels = (
+                    mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
+                )
             inputs = inputs.to(args.device)
             labels = labels.to(args.device)
             model.train()
@@ -867,7 +872,7 @@ def main():
         "--server_port", type=str, default="", help="For distant debugging."
     )
     # XXX: custom arguments
-    parser.add_argument("--model_version", type=int, required=True)
+    parser.add_argument("--patches", type=str, nargs="+", required=True)
 
     args = parser.parse_args()
 
@@ -999,7 +1004,7 @@ def main():
         model = AutoModelWithLMHead.from_config(config)
 
     # XXX: custom model
-    model = PatchedBertForMaskedLM(model, args.model_version)
+    model = PatchedBertForMaskedLM(model, args.patches)
 
     model.to(args.device)
 

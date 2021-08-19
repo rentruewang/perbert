@@ -685,7 +685,7 @@ def main():
     )
 
     # XXX: custom arguments
-    parser.add_argument("--model_version", type=int, required=True)
+    parser.add_argument("--patches", type=str, nargs="+", required=True)
     args = parser.parse_args()
 
     if (
@@ -774,7 +774,7 @@ def main():
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
     # XXX: custom model
-    model = PatchedBertForSequenceClassification(model, version=args.model_version)
+    model = PatchedBertForSequenceClassification(model, version=args.patches)
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -812,7 +812,7 @@ def main():
         # Load a trained model and vocabulary that you have fine-tuned
         model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)
         # XXX: custom model
-        model = PatchedBertForSequenceClassification(model, version=args.model_version)
+        model = PatchedBertForSequenceClassification(model, version=args.patches)
 
         tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
         model.to(args.device)
@@ -843,9 +843,7 @@ def main():
 
             model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
             # XXX: custom model
-            model = PatchedBertForSequenceClassification(
-                model, version=args.model_version
-            )
+            model = PatchedBertForSequenceClassification(model, version=args.patches)
 
             model.to(args.device)
             result = evaluate(args, model, tokenizer, prefix=prefix)

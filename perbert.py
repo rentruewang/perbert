@@ -11,12 +11,6 @@ from transformers.modeling_bert import (
     BertSelfAttention,
 )
 
-# NOTE
-# version 0: original
-# version 1: blind spot
-# version 2: softmax + dropout
-# version 3: version 1 + version 2
-
 
 class DropSoftmax(Module):
     def __init__(self, p, dim) -> None:
@@ -55,13 +49,13 @@ class DropSoftmax(Module):
 
 def PatchedBertSelfAttention(
     model: BertSelfAttention,
-    version=0,
+    patches: list[str],
 ):
-    if version == 0:
+    if "none" in patches:
         return model
 
-    blindspot = version in [1, 3]
-    dropsoft = version in [2, 3]
+    blindspot = "blindspot" in patches
+    dropsoft = "dropsoft" in patches
 
     if dropsoft:
         model.dropsoft = DropSoftmax(0.5, -1)
@@ -145,9 +139,9 @@ def PatchedBertSelfAttention(
 
 def PatchedBert(
     model: BertModel,
-    version=0,
+    patches: list[str],
 ):
-    if version == 0:
+    if "none" in patches:
         return model
 
     assert isinstance(model, BertModel), type(model)
@@ -158,27 +152,27 @@ def PatchedBert(
 
 def PatchedBertForMaskedLM(
     model: BertForMaskedLM,
-    version=0,
+    patches: list[str],
 ):
 
-    if version == 0:
+    if "none" in patches:
         return model
 
     assert isinstance(model, BertForMaskedLM), type(model)
-    model.bert = PatchedBert(model.bert, version)
+    model.bert = PatchedBert(model.bert, patches)
     return model
 
 
 def PatchedBertForSequenceClassification(
     model: BertForSequenceClassification,
-    version=0,
+    patches: list[str],
 ):
 
-    if version == 0:
+    if "none" in patches:
         return model
 
     assert isinstance(model, BertForSequenceClassification), type(model)
-    model.bert = PatchedBert(model.bert, version)
+    model.bert = PatchedBert(model.bert, patches)
     return model
 
 
