@@ -1,16 +1,18 @@
+import logging
 from types import MethodType
 
 import numpy as np
 import torch
 from torch.nn import Module, Softmax
 from torch.nn import functional as F
-from transformers import BertModel, BertTokenizer
+from transformers import BertConfig, BertModel, BertTokenizer
 from transformers.modeling_bert import (
     BertForMaskedLM,
     BertForSequenceClassification,
     BertSelfAttention,
 )
 
+logger = logging.getLogger(__name__)
 
 class DropSoftmax(Module):
     def __init__(self, p, dim) -> None:
@@ -52,10 +54,17 @@ def PatchedBertSelfAttention(
     patches: list[str],
 ):
     if "none" in patches:
+        logger.warning("Nothing is changed.")
         return model
 
     blindspot = "blindspot" in patches
     dropsoft = "dropsoft" in patches
+
+    if blindspot:
+        logger.warning("Blindspot is on.")
+    
+    if dropsoft:
+        logger.warning("Dropsoft is on.")
 
     if dropsoft:
         model.dropsoft = DropSoftmax(0.5, -1)
@@ -142,11 +151,12 @@ def PatchedBert(
     patches: list[str],
 ):
     if "none" in patches:
+        logger.warning("Nothing is changed.")
         return model
 
     assert isinstance(model, BertModel), type(model)
     for layer in model.encoder.layer:
-        layer.attention.self = PatchedBertSelfAttention(layer.attention.self, version)
+        layer.attention.self = PatchedBertSelfAttention(layer.attention.self, patches)
     return model
 
 
@@ -169,31 +179,13 @@ def PatchedBertForSequenceClassification(
 ):
 
     if "none" in patches:
+        logger.warning("Nothing is changed.")
         return model
+    
+    if "random" in patches:
+        logger.warning("random model used.")
+        return BertForSequenceClassification(BertConfig())
 
     assert isinstance(model, BertForSequenceClassification), type(model)
     model.bert = PatchedBert(model.bert, patches)
     return model
-
-
-if __name__ == "__main__":
-    bert = BertModel.from_pretrained("bert-base-uncased")
-    bert = PatchedBert(bert, 3)
-
-    tnk = BertTokenizer.from_pretrained("bert-base-uncased")
-    tok = tnk.tokenize("hello, world.")
-    print(tok)
-    enc = tnk.convert_tokens_to_ids(tok)
-    print(enc)
-    inp = tnk.build_inputs_with_special_tokens(enc)
-    print(inp)
-
-    tok1 = tnk.batch_encode_plus(
-        ["hello, world.", "it's a beautiful sunday."],
-        return_tensors="pt",
-        pad_to_max_length=True,
-    )
-    print(tok1)
-    bert.train()
-    o = bert(**tok1)
-    print(o)
