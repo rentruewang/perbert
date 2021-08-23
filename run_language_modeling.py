@@ -193,9 +193,11 @@ class SplitChainDataset(Dataset):
 def load_and_cache_examples(args, tokenizer, evaluate=False):
     file_path = args.eval_data_file if evaluate else args.train_data_file
     if args.line_by_line:
-        return LineByLineTextDataset(
-            tokenizer, args, file_path=file_path, block_size=args.block_size
-        )
+        # return LineByLineTextDataset(
+        #     tokenizer, args, file_path=file_path, block_size=args.block_size
+        # )
+        logger.error("not good")
+        raise ValueError
     else:
         return SplitChainDataset(
             tokenizer, args, file_path=file_path, block_size=args.block_size
@@ -1019,6 +1021,10 @@ def main():
             torch.distributed.barrier()  # Barrier to make sure only the first process in distributed training process the dataset, and the others will use the cache
 
         train_dataset = load_and_cache_examples(args, tokenizer, evaluate=False)
+
+        if "save-10" in args.patches:
+            logger.warning("saving 10 checkpoints")
+            args.save_steps = len(train_dataset) // 10
 
         if args.local_rank == 0:
             torch.distributed.barrier()
