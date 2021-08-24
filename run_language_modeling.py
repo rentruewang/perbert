@@ -314,6 +314,11 @@ def train(
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
 
+    # XXX
+    if "save-10" in args.patches:
+        args.save_steps = len(train_dataset) // args.train_batch_size // 10
+        logger.warning("saving 10 checkpoints: step = %d", args.save_steps)
+
     def collate(examples: List[torch.Tensor]):
         if tokenizer._pad_token is None:
             return pad_sequence(examples, batch_first=True)
@@ -1021,10 +1026,6 @@ def main():
             torch.distributed.barrier()  # Barrier to make sure only the first process in distributed training process the dataset, and the others will use the cache
 
         train_dataset = load_and_cache_examples(args, tokenizer, evaluate=False)
-
-        if "save-10" in args.patches:
-            logger.warning("saving 10 checkpoints")
-            args.save_steps = len(train_dataset) // 10
 
         if args.local_rank == 0:
             torch.distributed.barrier()
