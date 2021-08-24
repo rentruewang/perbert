@@ -79,7 +79,6 @@ class TextDataset(Dataset):
             directory,
             args.model_type + "_cached_lm_" + str(block_size) + "_" + filename,
         )
-        print("loading " + file_path, cached_features_file)
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
             logger.info("Loading features from cached file %s", cached_features_file)
             with open(cached_features_file, "rb") as handle:
@@ -115,7 +114,6 @@ class TextDataset(Dataset):
         self.examples = np.array(examples).astype("int32")
         del examples
         gc.collect()
-        print(self.examples.dtype, self.examples.size, self.examples.shape)
 
     def __len__(self):
         return len(self.examples)
@@ -161,7 +159,7 @@ class SplitChainDataset(Dataset):
         datadir = os.path.join(path, "dataset-" + fname.split(".")[0])
         files = sorted(glob.glob(f"{datadir}/*"))
         files = [f for f in files if "_cached_lm_" not in f]
-        print("loading " + str(files))
+        logger.info("loading " + str(files))
 
         self.datasets: list[TextDataset] = []
         for f in files:
@@ -175,7 +173,7 @@ class SplitChainDataset(Dataset):
             self.datasets.append(dset)
             if len(self) > half:
                 break
-        print("Final length:", len(self))
+        logger.info("Final length:", len(self))
 
     def __len__(self):
         return sum(len(dset) for dset in self.datasets)
