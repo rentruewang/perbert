@@ -32,7 +32,6 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-from joblib import Parallel, delayed
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import (
     DataLoader,
@@ -40,6 +39,7 @@ from torch.utils.data import (
     RandomSampler,
     SequentialSampler,
 )
+from multiprocessing.pool import ThreadPool
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import (
@@ -172,12 +172,15 @@ class SplitChainDataset(Dataset):
 
         self.datasets: list[TextDataset] = []
 
-        datasets = Parallel(-1)(
-            delayed(text_dataset_and_index)(i, tokenizer, args, f, block_size)
-            for (i, f) in enumerate(files)
-        )
-        datasets = sorted(datasets)
-        datasets = [d[1] for d in datasets]
+        # datasets = ThreadPool(8).starmap(
+        #     text_dataset_and_index,
+        #     [(i, tokenizer, args, f, block_size) for (i, f) in enumerate(files)],
+        # )
+        # datasets = sorted(datasets)
+        # datasets = [d[1] for d in datasets]
+        datasets = []
+        for f in tqdm(files):
+            datasets.append(TextDataset(tokenizer, args, f, block_size))
         self.datasets = datasets
 
         datasets = self.datasets
@@ -707,7 +710,6 @@ def main():
         "--train_data_file",
         default=None,
         type=str,
-        required=True,
         help="The input training data file (a text file).",
     )
     parser.add_argument(

@@ -25,7 +25,12 @@ import random
 
 import numpy as np
 import torch
-from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
+from torch.utils.data import (
+    DataLoader,
+    RandomSampler,
+    SequentialSampler,
+    TensorDataset,
+)
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import (
@@ -122,10 +127,14 @@ def train(args, train_dataset, model, tokenizer):
     ]
 
     optimizer = AdamW(
-        optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon
+        optimizer_grouped_parameters,
+        lr=args.learning_rate,
+        eps=args.adam_epsilon,
     )
     scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+        optimizer,
+        num_warmup_steps=args.warmup_steps,
+        num_training_steps=t_total,
     )
 
     # Check if saved optimizer or scheduler states exist
@@ -218,7 +227,9 @@ def train(args, train_dataset, model, tokenizer):
     set_seed(args)  # Added here for reproductibility
     for _ in train_iterator:
         epoch_iterator = tqdm(
-            train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0]
+            train_dataloader,
+            desc="Iteration",
+            disable=args.local_rank not in [-1, 0],
         )
         for step, batch in enumerate(epoch_iterator):
 
@@ -319,13 +330,16 @@ def train(args, train_dataset, model, tokenizer):
                     logger.info("Saving model checkpoint to %s", output_dir)
 
                     torch.save(
-                        optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
+                        optimizer.state_dict(),
+                        os.path.join(output_dir, "optimizer.pt"),
                     )
                     torch.save(
-                        scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
+                        scheduler.state_dict(),
+                        os.path.join(output_dir, "scheduler.pt"),
                     )
                     logger.info(
-                        "Saving optimizer and scheduler states to %s", output_dir
+                        "Saving optimizer and scheduler states to %s",
+                        output_dir,
                     )
 
             if args.max_steps > 0 and global_step > args.max_steps:
@@ -407,7 +421,9 @@ def evaluate(args, model, tokenizer, prefix=""):
             else:
                 preds = np.append(preds, logits.detach().cpu().numpy(), axis=0)
                 out_label_ids = np.append(
-                    out_label_ids, inputs["labels"].detach().cpu().numpy(), axis=0
+                    out_label_ids,
+                    inputs["labels"].detach().cpu().numpy(),
+                    axis=0,
                 )
 
         eval_loss = eval_loss / nb_eval_steps
@@ -450,7 +466,10 @@ def load_and_cache_examples(args, task, tokenizer, evaluate=False):
     else:
         logger.info("Creating features from dataset file at %s", args.data_dir)
         label_list = processor.get_labels()
-        if task in ["mnli", "mnli-mm"] and args.model_type in ["roberta", "xlmroberta"]:
+        if task in ["mnli", "mnli-mm"] and args.model_type in [
+            "roberta",
+            "xlmroberta",
+        ]:
             # HACK(label indices are swapped in RoBERTa pretrained model)
             label_list[1], label_list[2] = label_list[2], label_list[1]
         examples = (
@@ -566,7 +585,9 @@ def main():
         "--do_train", action="store_true", help="Whether to run training."
     )
     parser.add_argument(
-        "--do_eval", action="store_true", help="Whether to run eval on the dev set."
+        "--do_eval",
+        action="store_true",
+        help="Whether to run eval on the dev set.",
     )
     parser.add_argument(
         "--evaluate_during_training",
@@ -604,10 +625,16 @@ def main():
         help="The initial learning rate for Adam.",
     )
     parser.add_argument(
-        "--weight_decay", default=0.0, type=float, help="Weight decay if we apply some."
+        "--weight_decay",
+        default=0.0,
+        type=float,
+        help="Weight decay if we apply some.",
     )
     parser.add_argument(
-        "--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer."
+        "--adam_epsilon",
+        default=1e-8,
+        type=float,
+        help="Epsilon for Adam optimizer.",
     )
     parser.add_argument(
         "--max_grad_norm", default=1.0, type=float, help="Max gradient norm."
@@ -625,11 +652,17 @@ def main():
         help="If > 0: set total number of training steps to perform. Override num_train_epochs.",
     )
     parser.add_argument(
-        "--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps."
+        "--warmup_steps",
+        default=0,
+        type=int,
+        help="Linear warmup over warmup_steps.",
     )
 
     parser.add_argument(
-        "--logging_steps", type=int, default=500, help="Log every X updates steps."
+        "--logging_steps",
+        type=int,
+        default=500,
+        help="Log every X updates steps.",
     )
     parser.add_argument(
         "--save_steps",
