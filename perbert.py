@@ -5,14 +5,15 @@ import numpy as np
 import torch
 from torch.nn import Module, Softmax
 from torch.nn import functional as F
-from transformers import BertConfig, BertModel, BertTokenizer
-from transformers.modeling_bert import (
-    BertForMaskedLM,
-    BertForSequenceClassification,
-    BertSelfAttention,
-)
+from transformers import AlbertConfig, BertConfig
+from transformers.modeling_bert import *
+from transformers.modeling_albert import *
 
 logger = logging.getLogger(__name__)
+
+BERT_BASE_UNCASED = "bert-base-uncased"
+ALBERT_BASE_V2 = "albert-base-v2"
+
 
 class DropSoftmax(Module):
     def __init__(self, p, dim) -> None:
@@ -49,10 +50,7 @@ class DropSoftmax(Module):
         return self
 
 
-def PatchedBertSelfAttention(
-    model: BertSelfAttention,
-    patches: list[str],
-):
+def PatchedBertSelfAttention(model, patches):
     if "none" in patches:
         logger.warning("Nothing is changed.")
         return model
@@ -62,7 +60,7 @@ def PatchedBertSelfAttention(
 
     if blindspot:
         logger.warning("Blindspot is on.")
-    
+
     if dropsoft:
         logger.warning("Dropsoft is on.")
 
@@ -70,7 +68,7 @@ def PatchedBertSelfAttention(
         model.dropsoft = DropSoftmax(0.5, -1)
 
     def patch_forward(
-        self: BertSelfAttention,
+        self,
         hidden_states,
         attention_mask=None,
         head_mask=None,
@@ -146,46 +144,69 @@ def PatchedBertSelfAttention(
     return model
 
 
-def PatchedBert(
-    model: BertModel,
-    patches: list[str],
-):
-    if "none" in patches:
-        logger.warning("Nothing is changed.")
-        return model
-
-    assert isinstance(model, BertModel), type(model)
-    for layer in model.encoder.layer:
-        layer.attention.self = PatchedBertSelfAttention(layer.attention.self, patches)
-    return model
-
-
-def PatchedBertForMaskedLM(
-    model: BertForMaskedLM,
-    patches: list[str],
-):
-
-    if "none" in patches:
-        return model
-
-    assert isinstance(model, BertForMaskedLM), type(model)
-    model.bert = PatchedBert(model.bert, patches)
-    return model
-
-
-def PatchedBertForSequenceClassification(
-    model: BertForSequenceClassification,
-    patches: list[str],
-):
+def Patched(model_type, model, patches):
 
     if "none" in patches:
         logger.warning("Nothing is changed.")
         return model
-    
-    if "random" in patches:
-        logger.warning("random model used.")
-        return BertForSequenceClassification(BertConfig())
 
-    assert isinstance(model, BertForSequenceClassification), type(model)
-    model.bert = PatchedBert(model.bert, patches)
+    if model_type == BERT_BASE_UNCASED:
+        for layer in model.encoder.layer:
+            layer.attention.self = PatchedBertSelfAttention(
+                layer.attention.self, patches
+            )
+
+    if model_type == ALBERT_BASE_V2:
+        for group in model.encoder.albert_layer_groups:
+            for layer in group.albert_layers:
+                layer.attention = PatchedBertSelfAttention(layer.attention, patches)
     return model
+
+
+def PatchedForMaskedLM(model_type, model, patches):
+
+    if "none" in patches:
+        return model
+
+    if model_type == BERT_BASE_UNCASED:
+        model.bert = Patched(BERT_BASE_UNCASED, model.bert, patches)
+
+    if model_type == ALBERT_BASE_V2:
+        model.albert = Patched(ALBERT_BASE_V2, model.albert, patches)
+        model.predictions.decoder = torch.nn.Linear(128, 30522)
+    return model
+
+
+def PatchedSequenceClassification(model_type, model, patches):
+
+    if "none" in patches:
+        logger.warning("Nothing is changed.")
+        return model
+
+    if model_type == BERT_BASE_UNCASED:
+
+        if "random" in patches:
+            logger.warning("random model used.")
+            return BertForSequenceClassification(BertConfig())
+
+        model.bert = Patched(BERT_BASE_UNCASED, model.bert, patches)
+        return model
+
+    if model_type == ALBERT_BASE_V2:
+        if "random" in patches:
+            return AlbertForSequenceClassification(AlbertConfig())
+
+        model.albert = Patched(ALBERT_BASE_V2, model.albert, patches)
+        return model
+
+    logger.error("Fail")
+
+
+if __name__ == "__main__":
+    # bert = BertModel(BertConfig())
+    # bert = Patched(BERT_BASE_UNCASED, bert, ["blindspot"])
+
+    # albert = AlbertModel(AlbertConfig())
+    # albert = Patched(ALBERT_BASE_V2, albert, ["blindspot"])
+
+    PatchedForMaskedLM(ALBERT_BASE_V2, AlbertForMaskedLM(AlbertConfig()), ["blindspot"])

@@ -19,7 +19,6 @@ GPT and GPT-2 are fine-tuned using a causal language modeling (CLM) loss while B
 using a masked language modeling (MLM) loss.
 """
 
-
 import argparse
 import gc
 import glob
@@ -33,8 +32,14 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
+from joblib import Parallel, delayed
 from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
+from torch.utils.data import (
+    DataLoader,
+    Dataset,
+    RandomSampler,
+    SequentialSampler,
+)
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import (
@@ -77,7 +82,7 @@ class TextDataset(Dataset):
         directory, filename = os.path.split(file_path)
         cached_features_file = os.path.join(
             directory,
-            args.model_type + "_cached_lm_" + str(block_size) + "_" + filename,
+            "bert-base-uncased" + "_cached_lm_" + str(block_size) + "_" + filename,
         )
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
             logger.info("Loading features from cached file %s", cached_features_file)
@@ -150,6 +155,10 @@ class LineByLineTextDataset(Dataset):
         return torch.tensor(self.examples[i], dtype=torch.long)
 
 
+def text_dataset_and_index(index, *args, **kwargs):
+    return (index, TextDataset(*args, **kwargs))
+
+
 # XXX: split dataset
 class SplitChainDataset(Dataset):
     def __init__(
@@ -162,18 +171,27 @@ class SplitChainDataset(Dataset):
         logger.info("loading " + str(files))
 
         self.datasets: list[TextDataset] = []
-        for f in files:
-            dset = TextDataset(tokenizer, args, f, block_size)
-            self.datasets.append(dset)
+
+        datasets = Parallel(-1)(
+            delayed(text_dataset_and_index)(i, tokenizer, args, f, block_size)
+            for (i, f) in enumerate(files)
+        )
+        datasets = sorted(datasets)
+        datasets = [d[1] for d in datasets]
+        self.datasets = datasets
 
         datasets = self.datasets
-        half = len(self) // 2
+        if "small-subset" in args.patches:
+            half = len(self) // 20
+        else:
+            half = len(self) // 2
+
         self.datasets = []
         for dset in datasets:
             self.datasets.append(dset)
             if len(self) > half:
                 break
-        logger.info("Final length:", len(self))
+        logger.info("Final length: %d", len(self))
 
     def __len__(self):
         return sum(len(dset) for dset in self.datasets)
@@ -635,6 +653,8 @@ def evaluate(
     eval_loss = 0.0
     nb_eval_steps = 0
     model.eval()
+    total_right = 0
+    total_num = 0
 
     for batch in tqdm(eval_dataloader, desc="Evaluating"):
         inputs, labels = (
@@ -642,6 +662,10 @@ def evaluate(
         )
         inputs = inputs.to(args.device)
         labels = labels.to(args.device)
+
+        assert inputs.ndim == 2, inputs.ndim
+        assert inputs.shape == batch.shape, [inputs.shape, batch.shape]
+        assert labels.shape == inputs.shape, [labels.shape, inputs.shape]
 
         with torch.no_grad():
             outputs = (
@@ -651,12 +675,19 @@ def evaluate(
             )
             lm_loss = outputs[0]
             eval_loss += lm_loss.mean().item()
+
+            outputs = model(batch)
+            assert outputs.shape == batch.shape, [outputs.shape, batch.shape]
+            total_right = (outputs == batch).sum().item()
+
         nb_eval_steps += 1
+        total_num += batch.size
 
     eval_loss = eval_loss / nb_eval_steps
     perplexity = torch.exp(torch.tensor(eval_loss))
+    accuracy = total_right / total_num
 
-    result = {"perplexity": perplexity}
+    result = {"loss": eval_loss, "perplexity": perplexity, "acc": accuracy}
 
     output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
     with open(output_eval_file, "w") as writer:
@@ -1009,7 +1040,7 @@ def main():
         model = AutoModelWithLMHead.from_config(config)
 
     # XXX: custom model
-    model = PatchedBertForMaskedLM(model, args.patches)
+    model = PatchedForMaskedLM(args.model_type, model, args.patches)
 
     model.to(args.device)
 

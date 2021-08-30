@@ -774,7 +774,7 @@ def main():
         cache_dir=args.cache_dir if args.cache_dir else None,
     )
     # XXX: custom model
-    model = PatchedBertForSequenceClassification(model, patches=args.patches)
+    model = PatchedSequenceClassification(args.model_type, model, patches=args.patches)
 
     if args.local_rank == 0:
         torch.distributed.barrier()  # Make sure only the first process in distributed training will download model & vocab
@@ -812,7 +812,9 @@ def main():
         # Load a trained model and vocabulary that you have fine-tuned
         model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)
         # XXX: custom model
-        model = PatchedBertForSequenceClassification(model, patches=args.patches)
+        model = PatchedSequenceClassification(
+            args.model_type, model, patches=args.patches
+        )
 
         tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
         model.to(args.device)
