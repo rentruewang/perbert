@@ -71,7 +71,11 @@ MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
 # XXX: using numpy
 class TextDataset(Dataset):
     def __init__(
-        self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
+        self,
+        tokenizer: PreTrainedTokenizer,
+        args,
+        file_path: str,
+        block_size=512,
     ):
         assert os.path.isfile(file_path)
 
@@ -129,7 +133,11 @@ class TextDataset(Dataset):
 
 class LineByLineTextDataset(Dataset):
     def __init__(
-        self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
+        self,
+        tokenizer: PreTrainedTokenizer,
+        args,
+        file_path: str,
+        block_size=512,
     ):
         assert os.path.isfile(file_path)
         # Here, we do not cache the features, operating under the assumption
@@ -162,7 +170,11 @@ def text_dataset_and_index(index, *args, **kwargs):
 # XXX: split dataset
 class SplitChainDataset(Dataset):
     def __init__(
-        self, tokenizer: PreTrainedTokenizer, args, file_path: str, block_size=512
+        self,
+        tokenizer: PreTrainedTokenizer,
+        args,
+        file_path: str,
+        block_size=512,
     ):
         path, fname = os.path.split(file_path)
         datadir = os.path.join(path, "dataset-" + fname.split(".")[0])
@@ -185,7 +197,7 @@ class SplitChainDataset(Dataset):
 
         datasets = self.datasets
         if "small-subset" in args.patches:
-            half = len(self) // 20
+            half = len(self) // 5
         else:
             half = len(self) // 2
 
@@ -397,10 +409,14 @@ def train(
         },
     ]
     optimizer = AdamW(
-        optimizer_grouped_parameters, lr=args.learning_rate, eps=args.adam_epsilon
+        optimizer_grouped_parameters,
+        lr=args.learning_rate,
+        eps=args.adam_epsilon,
     )
     scheduler = get_linear_schedule_with_warmup(
-        optimizer, num_warmup_steps=args.warmup_steps, num_training_steps=t_total
+        optimizer,
+        num_warmup_steps=args.warmup_steps,
+        num_training_steps=t_total,
     )
 
     # Check if saved optimizer or scheduler states exist
@@ -497,7 +513,9 @@ def train(
     set_seed(args)  # Added here for reproducibility
     for _ in train_iterator:
         epoch_iterator = tqdm(
-            train_dataloader, desc="Iteration", disable=args.local_rank not in [-1, 0]
+            train_dataloader,
+            desc="Iteration",
+            disable=args.local_rank not in [-1, 0],
         )
         for step, batch in enumerate(epoch_iterator):
 
@@ -579,7 +597,8 @@ def train(
                     checkpoint_prefix = "checkpoint"
                     # Save model checkpoint
                     output_dir = os.path.join(
-                        args.output_dir, "{}-{}".format(checkpoint_prefix, global_step)
+                        args.output_dir,
+                        "{}-{}".format(checkpoint_prefix, global_step),
                     )
                     os.makedirs(output_dir, exist_ok=True)
                     model_to_save = (
@@ -594,13 +613,16 @@ def train(
                     _rotate_checkpoints(args, checkpoint_prefix)
 
                     torch.save(
-                        optimizer.state_dict(), os.path.join(output_dir, "optimizer.pt")
+                        optimizer.state_dict(),
+                        os.path.join(output_dir, "optimizer.pt"),
                     )
                     torch.save(
-                        scheduler.state_dict(), os.path.join(output_dir, "scheduler.pt")
+                        scheduler.state_dict(),
+                        os.path.join(output_dir, "scheduler.pt"),
                     )
                     logger.info(
-                        "Saving optimizer and scheduler states to %s", output_dir
+                        "Saving optimizer and scheduler states to %s",
+                        output_dir,
                     )
 
             if args.max_steps > 0 and global_step > args.max_steps:
@@ -663,6 +685,7 @@ def evaluate(
         inputs, labels = (
             mask_tokens(batch, tokenizer, args) if args.mlm else (batch, batch)
         )
+        batch = batch.to(args.device)
         inputs = inputs.to(args.device)
         labels = labels.to(args.device)
 
@@ -679,12 +702,13 @@ def evaluate(
             lm_loss = outputs[0]
             eval_loss += lm_loss.mean().item()
 
-            outputs = model(batch)
+            outputs = model(batch)[0]
+            outputs = outputs.argmax(-1)
             assert outputs.shape == batch.shape, [outputs.shape, batch.shape]
             total_right = (outputs == batch).sum().item()
 
         nb_eval_steps += 1
-        total_num += batch.size
+        total_num += batch.cpu().numpy().size
 
     eval_loss = eval_loss / nb_eval_steps
     perplexity = torch.exp(torch.tensor(eval_loss))
@@ -791,7 +815,9 @@ def main():
         "--do_train", action="store_true", help="Whether to run training."
     )
     parser.add_argument(
-        "--do_eval", action="store_true", help="Whether to run eval on the dev set."
+        "--do_eval",
+        action="store_true",
+        help="Whether to run eval on the dev set.",
     )
     parser.add_argument(
         "--evaluate_during_training",
@@ -824,10 +850,16 @@ def main():
         help="The initial learning rate for Adam.",
     )
     parser.add_argument(
-        "--weight_decay", default=0.0, type=float, help="Weight decay if we apply some."
+        "--weight_decay",
+        default=0.0,
+        type=float,
+        help="Weight decay if we apply some.",
     )
     parser.add_argument(
-        "--adam_epsilon", default=1e-8, type=float, help="Epsilon for Adam optimizer."
+        "--adam_epsilon",
+        default=1e-8,
+        type=float,
+        help="Epsilon for Adam optimizer.",
     )
     parser.add_argument(
         "--max_grad_norm", default=1.0, type=float, help="Max gradient norm."
@@ -845,11 +877,17 @@ def main():
         help="If > 0: set total number of training steps to perform. Override num_train_epochs.",
     )
     parser.add_argument(
-        "--warmup_steps", default=0, type=int, help="Linear warmup over warmup_steps."
+        "--warmup_steps",
+        default=0,
+        type=int,
+        help="Linear warmup over warmup_steps.",
     )
 
     parser.add_argument(
-        "--logging_steps", type=int, default=500, help="Log every X updates steps."
+        "--logging_steps",
+        type=int,
+        default=500,
+        help="Log every X updates steps.",
     )
     parser.add_argument(
         "--save_steps",
@@ -913,6 +951,9 @@ def main():
     parser.add_argument("--patches", type=str, nargs="+", required=True)
 
     args = parser.parse_args()
+
+    for patch in args.patches:
+        assert patch in PATCHES, patch
 
     # XXX: no error
     # if (

@@ -13,6 +13,15 @@ logger = logging.getLogger(__name__)
 
 BERT_BASE_UNCASED = "bert-base-uncased"
 ALBERT_BASE_V2 = "albert-base-v2"
+PATCHES = {
+    "none",
+    "mlmpair",
+    "small-subset",
+    "blindspot",
+    "dropsoft",
+    "random",
+    "save-10",
+}
 
 
 class DropSoftmax(Module):
