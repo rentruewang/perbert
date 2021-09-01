@@ -705,7 +705,7 @@ def evaluate(
             outputs = model(batch)[0]
             outputs = outputs.argmax(-1)
             assert outputs.shape == batch.shape, [outputs.shape, batch.shape]
-            total_right = (outputs == batch).sum().item()
+            total_right += (outputs == batch).sum().item()
 
         nb_eval_steps += 1
         total_num += batch.cpu().numpy().size
