@@ -21,6 +21,7 @@ PATCHES = {
     "dropsoft",
     "random",
     "save-10",
+    "fast-terminate",
 }
 
 

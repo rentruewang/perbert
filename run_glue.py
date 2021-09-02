@@ -139,16 +139,16 @@ def train(args, train_dataset, model, tokenizer):
 
     # XXX this causes error
     # Check if saved optimizer or scheduler states exist
-    # if os.path.isfile(
-    #     os.path.join(args.model_name_or_path, "optimizer.pt")
-    # ) and os.path.isfile(os.path.join(args.model_name_or_path, "scheduler.pt")):
-    #     # Load in optimizer and scheduler states
-    #     optimizer.load_state_dict(
-    #         torch.load(os.path.join(args.model_name_or_path, "optimizer.pt"))
-    #     )
-    #     scheduler.load_state_dict(
-    #         torch.load(os.path.join(args.model_name_or_path, "scheduler.pt"))
-    #     )
+    if os.path.isfile(
+        os.path.join(args.model_name_or_path, "optimizer.pt")
+    ) and os.path.isfile(os.path.join(args.model_name_or_path, "scheduler.pt")):
+        # Load in optimizer and scheduler states
+        # optimizer.load_state_dict(
+        #     torch.load(os.path.join(args.model_name_or_path, "optimizer.pt"))
+        # )
+        scheduler.load_state_dict(
+            torch.load(os.path.join(args.model_name_or_path, "scheduler.pt"))
+        )
 
     if args.fp16:
         try:
@@ -196,10 +196,10 @@ def train(args, train_dataset, model, tokenizer):
     # Check if continuing training from a checkpoint
     if os.path.exists(args.model_name_or_path):
         # set global_step to global_step of last saved checkpoint from model path
-        try:
-            global_step = int(args.model_name_or_path.split("-")[-1].split("/")[0])
-        except ValueError:
-            global_step = 0
+        # try:
+        #     global_step = int(args.model_name_or_path.split("-")[-1].split("/")[0])
+        # except ValueError:
+        #     global_step = 0
         epochs_trained = global_step // (
             len(train_dataloader) // args.gradient_accumulation_steps
         )

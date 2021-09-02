@@ -625,6 +625,11 @@ def train(
                         output_dir,
                     )
 
+                    FAST_TERM = "fast-terminate"
+                    assert FAST_TERM in PATCHES
+                    if FAST_TERM in args.patches:
+                        return global_step, tr_loss / global_step
+
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
                 break
