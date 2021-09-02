@@ -22,6 +22,9 @@ PATCHES = {
     "random",
     "save-10",
     "fast-terminate",
+    "embedding",
+    "gelu-1",
+    "gelu-2",
 }
 
 
@@ -58,6 +61,32 @@ class DropSoftmax(Module):
     def eval(self):
         self._is_train_by_me = False
         return self
+
+
+class Embedding(torch.nn.Embedding):
+    def __init__(self, config, gelu=None) -> None:
+        super().__init__()
+        emb = torch.nn.Embedding(config.vocab_size, 768)
+
+        if gelu == "1":
+            self.emb = torch.nn.Sequential(
+                emb, torch.nn.GELU(), torch.nn.Linear(768, 768)
+            )
+        elif gelu == "2":
+            self.emb = torch.nn.Sequential(
+                emb,
+                torch.nn.GELU(),
+                torch.nn.Linear(768, 768),
+                torch.nn.GELU(),
+                torch.nn.Linear(768, 768),
+            )
+        else:
+            assert gelu == None
+            self.emb = emb
+
+    def forward(self, input):
+        output = self.emb(input)
+        return output
 
 
 def PatchedBertSelfAttention(model, patches):
@@ -192,6 +221,15 @@ def PatchedSequenceClassification(model_type, model, patches):
     if "none" in patches:
         logger.warning("Nothing is changed.")
         return model
+
+    if "embedding" in patches:
+        logger.warning("Only embeddings.")
+        if "gelu-1" in patches:
+            return Embedding(BertConfig(), "1")
+        elif "gelu-2" in patches:
+            return Embedding(BertConfig(), "2")
+        else:
+            return Embedding(BertConfig())
 
     if model_type == BERT_BASE_UNCASED:
 
