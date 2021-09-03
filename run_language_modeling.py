@@ -42,17 +42,8 @@ from torch.utils.data import (
 from multiprocessing.pool import ThreadPool
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
-from transformers import (
-    MODEL_WITH_LM_HEAD_MAPPING,
-    WEIGHTS_NAME,
-    AdamW,
-    AutoConfig,
-    AutoModelWithLMHead,
-    AutoTokenizer,
-    PreTrainedModel,
-    PreTrainedTokenizer,
-    get_linear_schedule_with_warmup,
-)
+from transformers import *
+
 
 from perbert import *
 
@@ -79,9 +70,11 @@ class TextDataset(Dataset):
     ):
         assert os.path.isfile(file_path)
 
-        block_size = block_size - (
-            tokenizer.max_len - tokenizer.max_len_single_sentence
-        )
+        # block_size = block_size - (
+        #     tokenizer.max_len - tokenizer.max_len_single_sentence
+        # )
+
+        block_size = 510
 
         directory, filename = os.path.split(file_path)
         cached_features_file = os.path.join(
@@ -89,12 +82,12 @@ class TextDataset(Dataset):
             "bert-base-uncased" + "_cached_lm_" + str(block_size) + "_" + filename,
         )
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
-            logger.info("Loading features from cached file %s", cached_features_file)
+            print("Loading features from cached file %s", cached_features_file)
             with open(cached_features_file, "rb") as handle:
                 examples = pickle.load(handle)
         else:
             # raise ValueError("not possible")
-            logger.info(
+            print(
                 "Creating features from dataset file at {}".format(
                     (directory, file_path)
                 )
@@ -117,7 +110,7 @@ class TextDataset(Dataset):
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
             # If your dataset is small, first you should loook for a bigger one :-) and second you
             # can change this behavior by adding (model specific) padding.
-            logger.info("Saving features into cached file %s", cached_features_file)
+            print("Saving features into cached file %s", cached_features_file)
             with open(cached_features_file, "wb") as handle:
                 pickle.dump(examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
         self.examples = np.array(examples).astype("int32")
@@ -143,7 +136,7 @@ class LineByLineTextDataset(Dataset):
         # Here, we do not cache the features, operating under the assumption
         # that we will soon use fast multithreaded tokenizers from the
         # `tokenizers` repo everywhere =)
-        logger.info("Creating features from dataset file at %s", file_path)
+        print("Creating features from dataset file at %s", file_path)
 
         with open(file_path, encoding="utf-8") as f:
             lines = [
@@ -180,7 +173,7 @@ class SplitChainDataset(Dataset):
         datadir = os.path.join(path, "dataset-" + fname.split(".")[0])
         files = sorted(glob.glob(f"{datadir}/*"))
         files = [f for f in files if "_cached_lm_" not in f]
-        logger.info("loading " + str(files))
+        print("loading " + str(files))
 
         self.datasets: list[TextDataset] = []
 
@@ -200,6 +193,7 @@ class SplitChainDataset(Dataset):
             size = 1e9
 
         for f in tqdm(files):
+            print(f)
             if len(datasets) > size:
                 break
             datasets.append(TextDataset(tokenizer, args, f, block_size))
@@ -209,7 +203,7 @@ class SplitChainDataset(Dataset):
             self.datasets.append(dset)
             if len(self) > size:
                 break
-        logger.info("Final length: %d", len(self))
+        print("Final length: %d", len(self))
 
     def __len__(self):
         return sum(len(dset) for dset in self.datasets)
@@ -286,7 +280,7 @@ def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -
     )
     checkpoints_to_be_deleted = checkpoints_sorted[:number_of_checkpoints_to_delete]
     for checkpoint in checkpoints_to_be_deleted:
-        logger.info(
+        print(
             "Deleting older checkpoint [{}] due to args.save_total_limit".format(
                 checkpoint
             )
@@ -464,20 +458,18 @@ def train(
         )
 
     # Train!
-    logger.info("***** Running training *****")
-    logger.info("  Num examples = %d", len(train_dataset))
-    logger.info("  Num Epochs = %d", args.num_train_epochs)
-    logger.info(
-        "  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size
-    )
-    logger.info(
+    print("***** Running training *****")
+    print("  Num examples = %d", len(train_dataset))
+    print("  Num Epochs = %d", args.num_train_epochs)
+    print("  Instantaneous batch size per GPU = %d", args.per_gpu_train_batch_size)
+    print(
         "  Total train batch size (w. parallel, distributed & accumulation) = %d",
         args.train_batch_size
         * args.gradient_accumulation_steps
         * (torch.distributed.get_world_size() if args.local_rank != -1 else 1),
     )
-    logger.info("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
-    logger.info("  Total optimization steps = %d", t_total)
+    print("  Gradient Accumulation steps = %d", args.gradient_accumulation_steps)
+    print("  Total optimization steps = %d", t_total)
 
     global_step = 0
     epochs_trained = 0
@@ -495,17 +487,17 @@ def train(
                 len(train_dataloader) // args.gradient_accumulation_steps
             )
 
-            logger.info(
+            print(
                 "  Continuing training from checkpoint, will skip to saved global_step"
             )
-            logger.info("  Continuing training from epoch %d", epochs_trained)
-            logger.info("  Continuing training from global step %d", global_step)
-            logger.info(
+            print("  Continuing training from epoch %d", epochs_trained)
+            print("  Continuing training from global step %d", global_step)
+            print(
                 "  Will skip the first %d steps in the first epoch",
                 steps_trained_in_current_epoch,
             )
         except ValueError:
-            logger.info("  Starting fine-tuning.")
+            print("  Starting fine-tuning.")
 
     tr_loss, logging_loss = 0.0, 0.0
 
@@ -614,7 +606,7 @@ def train(
                     tokenizer.save_pretrained(output_dir)
 
                     torch.save(args, os.path.join(output_dir, "training_args.bin"))
-                    logger.info("Saving model checkpoint to %s", output_dir)
+                    print("Saving model checkpoint to %s", output_dir)
 
                     _rotate_checkpoints(args, checkpoint_prefix)
 
@@ -626,7 +618,7 @@ def train(
                         scheduler.state_dict(),
                         os.path.join(output_dir, "scheduler.pt"),
                     )
-                    logger.info(
+                    print(
                         "Saving optimizer and scheduler states to %s",
                         output_dir,
                     )
@@ -683,9 +675,9 @@ def evaluate(
         model = torch.nn.DataParallel(model)
 
     # Eval!
-    logger.info("***** Running evaluation {} *****".format(prefix))
-    logger.info("  Num examples = %d", len(eval_dataset))
-    logger.info("  Batch size = %d", args.eval_batch_size)
+    print("***** Running evaluation {} *****".format(prefix))
+    print("  Num examples = %d", len(eval_dataset))
+    print("  Batch size = %d", args.eval_batch_size)
     eval_loss = 0.0
     nb_eval_steps = 0
     model.eval()
@@ -729,9 +721,9 @@ def evaluate(
 
     output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
     with open(output_eval_file, "w") as writer:
-        logger.info("***** Eval results {} *****".format(prefix))
+        print("***** Eval results {} *****".format(prefix))
         for key in sorted(result.keys()):
-            logger.info("  %s = %s", key, str(result[key]))
+            print("  %s = %s", key, str(result[key]))
             writer.write("%s = %s\n" % (key, str(result[key])))
 
     return result
@@ -1090,7 +1082,7 @@ def main():
             cache_dir=args.cache_dir,
         )
     else:
-        logger.info("Training new model from scratch")
+        print("Training new model from scratch")
         model = AutoModelWithLMHead.from_config(config)
 
     # XXX: custom model
@@ -1101,7 +1093,7 @@ def main():
     if args.local_rank == 0:
         torch.distributed.barrier()  # End of barrier to make sure only the first process in distributed training download model & vocab
 
-    logger.info("Training/evaluation parameters %s", args)
+    print("Training/evaluation parameters %s", args)
 
     # Training
     if args.do_train:
@@ -1114,7 +1106,7 @@ def main():
             torch.distributed.barrier()
 
         global_step, tr_loss = train(args, train_dataset, model, tokenizer)
-        logger.info(" global_step = %s, average loss = %s", global_step, tr_loss)
+        print(" global_step = %s, average loss = %s", global_step, tr_loss)
 
     # Saving best-practices: if you use save_pretrained for the model and tokenizer, you can reload them using from_pretrained()
     if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
@@ -1122,7 +1114,7 @@ def main():
         if args.local_rank in [-1, 0]:
             os.makedirs(args.output_dir, exist_ok=True)
 
-        logger.info("Saving model checkpoint to %s", args.output_dir)
+        print("Saving model checkpoint to %s", args.output_dir)
         # Save a trained model, configuration and tokenizer using `save_pretrained()`.
         # They can then be reloaded using `from_pretrained()`
         model_to_save = (
@@ -1154,7 +1146,7 @@ def main():
             logging.getLogger("transformers.modeling_utils").setLevel(
                 logging.WARN
             )  # Reduce logging
-        logger.info("Evaluate the following checkpoints: %s", checkpoints)
+        print("Evaluate the following checkpoints: %s", checkpoints)
         for checkpoint in checkpoints:
             global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
             prefix = (

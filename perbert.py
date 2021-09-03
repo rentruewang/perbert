@@ -67,6 +67,7 @@ class Embedding(torch.nn.Module):
     def __init__(self, config, gelu=None) -> None:
         super().__init__()
         emb = torch.nn.Embedding(config.vocab_size, 768)
+        self.pooler = BertPooler(config)
 
         if gelu == "1":
             self.emb = torch.nn.Sequential(
@@ -86,7 +87,8 @@ class Embedding(torch.nn.Module):
 
     def forward(self, input, *args, **kwargs):
         output = self.emb(input)
-        return (output,)
+        pooled = self.pooler(output)
+        return (output, pooled)
 
 
 def PatchedBertSelfAttention(model, patches):
@@ -247,7 +249,7 @@ def PatchedSequenceClassification(model_type, model, patches):
         model.albert = Patched(ALBERT_BASE_V2, model.albert, patches)
         return model
 
-    logger.error("Fail")
+    logger.error("Fail %s", model_type)
 
 
 if __name__ == "__main__":
