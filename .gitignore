@@ -142,8 +142,3 @@ cython_debug/
 .DS_Store
 
 /*/
-/*.log
-/*.sh
-
-!train.sh
-!eval.sh

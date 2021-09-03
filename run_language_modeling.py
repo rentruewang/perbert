@@ -191,20 +191,23 @@ class SplitChainDataset(Dataset):
         # datasets = sorted(datasets)
         # datasets = [d[1] for d in datasets]
         datasets = []
-        for f in tqdm(files):
-            datasets.append(TextDataset(tokenizer, args, f, block_size))
-        self.datasets = datasets
 
-        datasets = self.datasets
-        if "small-subset" in args.patches:
-            half = len(self) // 5
+        SMALL_SUBSET = "small-subset"
+        assert SMALL_SUBSET in PATCHES
+        if SMALL_SUBSET in args.patches:
+            size = 10
         else:
-            half = len(self) // 2
+            size = 1e9
+
+        for f in tqdm(files):
+            if len(datasets) > size:
+                break
+            datasets.append(TextDataset(tokenizer, args, f, block_size))
 
         self.datasets = []
         for dset in datasets:
             self.datasets.append(dset)
-            if len(self) > half:
+            if len(self) > size:
                 break
         logger.info("Final length: %d", len(self))
 
@@ -344,7 +347,7 @@ def train(
         tb_writer = SummaryWriter(os.path.join("runs", args.output_dir))
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
-
+    print(model)
     # XXX
     if "save-10" in args.patches:
         args.save_steps = len(train_dataset) // args.train_batch_size // 10
@@ -383,10 +386,13 @@ def train(
             * args.num_train_epochs
         )
 
-    model = (
-        model.module if hasattr(model, "module") else model
-    )  # Take care of distributed/parallel training
-    model.resize_token_embeddings(len(tokenizer))
+    EMBEDDING = "embedding"
+    assert EMBEDDING in PATCHES
+    if not EMBEDDING in args.patches:
+        model = (
+            model.module if hasattr(model, "module") else model
+        )  # Take care of distributed/parallel training
+        model.resize_token_embeddings(len(tokenizer))
 
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]

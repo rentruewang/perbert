@@ -63,7 +63,7 @@ class DropSoftmax(Module):
         return self
 
 
-class Embedding(torch.nn.Embedding):
+class Embedding(torch.nn.Module):
     def __init__(self, config, gelu=None) -> None:
         super().__init__()
         emb = torch.nn.Embedding(config.vocab_size, 768)
@@ -84,9 +84,9 @@ class Embedding(torch.nn.Embedding):
             assert gelu == None
             self.emb = emb
 
-    def forward(self, input):
+    def forward(self, input, *args, **kwargs):
         output = self.emb(input)
-        return output
+        return (output,)
 
 
 def PatchedBertSelfAttention(model, patches):
@@ -189,6 +189,15 @@ def Patched(model_type, model, patches):
         logger.warning("Nothing is changed.")
         return model
 
+    if "embedding" in patches:
+        logger.warning("Only embeddings.")
+        if "gelu-1" in patches:
+            return Embedding(BertConfig(), "1")
+        elif "gelu-2" in patches:
+            return Embedding(BertConfig(), "2")
+        else:
+            return Embedding(BertConfig())
+
     if model_type == BERT_BASE_UNCASED:
         for layer in model.encoder.layer:
             layer.attention.self = PatchedBertSelfAttention(
@@ -221,15 +230,6 @@ def PatchedSequenceClassification(model_type, model, patches):
     if "none" in patches:
         logger.warning("Nothing is changed.")
         return model
-
-    if "embedding" in patches:
-        logger.warning("Only embeddings.")
-        if "gelu-1" in patches:
-            return Embedding(BertConfig(), "1")
-        elif "gelu-2" in patches:
-            return Embedding(BertConfig(), "2")
-        else:
-            return Embedding(BertConfig())
 
     if model_type == BERT_BASE_UNCASED:
 
