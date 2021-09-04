@@ -231,131 +231,6 @@ def prepare_args():
     return args
 
 
-# Main 1
-if False:
-    loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
-    for logger in loggers:
-        logger.setLevel(logging.INFO)
-    bert = AutoModelWithLMHead.from_pretrained("bert-base-uncased")
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    args = prepare_args()
-    args.n_gpu = 1
-    print("load")
-    dataset = load_and_cache_examples(args, tokenizer)
-
-    vocab_size = BertConfig().vocab_size
-    model = torch.nn.Embedding(vocab_size, 768)
-
-    bert = bert.cuda()
-    model = PatchedForMaskedLM(BERT_BASE_UNCASED, bert, args.patches).cuda()
-
-    args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
-    print(model)
-    # XXX
-    if "save-10" in args.patches:
-        args.save_steps = len(dataset) // args.train_batch_size // 10
-        logger.warning("saving 10 checkpoints: step = %d", args.save_steps)
-
-    def collate(examples: List[torch.Tensor]):
-        if tokenizer._pad_token is None:
-            return pad_sequence(examples, batch_first=True)
-        return pad_sequence(
-            examples, batch_first=True, padding_value=tokenizer.pad_token_id
-        )
-
-    train_sampler = (
-        RandomSampler(dataset) if args.local_rank == -1 else DistributedSampler(dataset)
-    )
-    train_dataloader = DataLoader(
-        dataset,
-        sampler=train_sampler,
-        batch_size=args.train_batch_size,
-        collate_fn=collate,
-    )
-
-    optim = torch.optim.AdamW(model.parameters(), 1e-5)
-
-    for batch in tqdm(train_dataloader):
-        batch = batch.cuda()
-        with torch.no_grad():
-            bert_outputs = bert(batch)[0]
-        model_output = model(batch)[0]
-
-        assert bert_outputs.shape == model_output.shape, [
-            bert_outputs.shape,
-            model_output.shape,
-        ]
-        optim.zero_grad()
-        loss = ((model_output - bert_outputs) ** 2).sum()
-        optim.step()
-
-    DIR = "some-embedding-0"
-    os.makedirs(DIR, exist_ok=True)
-    model.cuda().save_pretrained(DIR)
-
-# Main 2
-if False:
-    loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
-    for logger in loggers:
-        logger.setLevel(logging.INFO)
-    bert = AutoModelWithLMHead.from_pretrained("bert-base-uncased")
-    tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
-    args = prepare_args()
-    args.n_gpu = 1
-    print("load")
-    dataset = load_and_cache_examples(args, tokenizer)
-
-    vocab_size = BertConfig().vocab_size
-    model = torch.nn.Embedding(vocab_size, 768)
-
-    bert = bert.cuda()
-    model = PatchedForMaskedLM(BERT_BASE_UNCASED, bert, args.patches).cuda()
-    model = model.cuda().from_pretrained("./some-embedding-0").cuda()
-
-    args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
-    print(model)
-    # XXX
-    if "save-10" in args.patches:
-        args.save_steps = len(dataset) // args.train_batch_size // 10
-        logger.warning("saving 10 checkpoints: step = %d", args.save_steps)
-
-    def collate(examples: List[torch.Tensor]):
-        if tokenizer._pad_token is None:
-            return pad_sequence(examples, batch_first=True)
-        return pad_sequence(
-            examples, batch_first=True, padding_value=tokenizer.pad_token_id
-        )
-
-    train_sampler = (
-        RandomSampler(dataset) if args.local_rank == -1 else DistributedSampler(dataset)
-    )
-    train_dataloader = DataLoader(
-        dataset,
-        sampler=train_sampler,
-        batch_size=args.train_batch_size,
-        collate_fn=collate,
-    )
-
-    optim = torch.optim.AdamW(bert.parameters(), 1e-5)
-    bert.train()
-
-    for batch in tqdm(train_dataloader):
-        batch = batch.cuda()
-        with torch.no_grad():
-            model_output = model(batch)[0]
-        bert_outputs = bert(batch)[0]
-
-        assert bert_outputs.shape == model_output.shape, [
-            bert_outputs.shape,
-            model_output.shape,
-        ]
-        optim.zero_grad()
-        loss = ((model_output - bert_outputs) ** 2).sum()
-        optim.step()
-
-    DIR = "from-embedding-0"
-    os.makedirs(DIR, exist_ok=True)
-    bert.save_pretrained(DIR)
 
 if __name__ == "__main__":
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
@@ -365,7 +240,6 @@ if __name__ == "__main__":
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     args = prepare_args()
     args.n_gpu = 1
-    print("load")
     dataset = load_and_cache_examples(args, tokenizer)
 
     vocab_size = BertConfig().vocab_size
@@ -373,7 +247,7 @@ if __name__ == "__main__":
 
     bert = bert.cuda()
     model = PatchedForMaskedLM(BERT_BASE_UNCASED, bert, args.patches).cuda()
-    model = model.cuda().from_pretrained("./from-embedding-0").cuda()
+    model = model.cuda().from_pretrained(args.model_name_or_path).cuda()
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     print(model)
@@ -416,6 +290,6 @@ if __name__ == "__main__":
         loss = ((model_output - bert_outputs) ** 2).sum()
         optim.step()
 
-    DIR = "from-embedding-0"
+    DIR = args.output_dir
     os.makedirs(DIR, exist_ok=True)
     bert.save_pretrained(DIR)

@@ -71,15 +71,14 @@ class Embedding(torch.nn.Module):
 
         if gelu == "1":
             self.emb = torch.nn.Sequential(
-                emb, torch.nn.GELU(), torch.nn.Linear(768, 768)
+                emb, torch.nn.Linear(768, 768)
             )
         elif gelu == "2":
             self.emb = torch.nn.Sequential(
                 emb,
+                torch.nn.Linear(768, 3072),
                 torch.nn.GELU(),
-                torch.nn.Linear(768, 768),
-                torch.nn.GELU(),
-                torch.nn.Linear(768, 768),
+                torch.nn.Linear(3072, 768),
             )
         else:
             assert gelu == None
