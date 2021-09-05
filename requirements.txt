@@ -4,3 +4,4 @@ transformers==2.8.0
 tensorboardX
 tqdm
 scikit-learn
+virtualenv
