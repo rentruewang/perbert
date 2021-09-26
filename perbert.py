@@ -14,26 +14,42 @@ logger.addHandler(RichHandler())
 
 BERT_BASE_UNCASED = "bert-base-uncased"
 ALBERT_BASE_V2 = "albert-base-v2"
+
+NONE = "none"
+MLMPAIR = "mlmpair"
+SMALLSUBSET = "smallsubset"
+BLINDSPOT = "blindspot"
+SAVE10 = "save10"
+FASTTERM = "fastterm"
+RANDCROSS = "randcross"
+MASKCROSS = "maskcross"
+
 PATCHES = {
-    "none",
-    "mlmpair",
-    "small-subset",
-    "blindspot",
-    "save-10",
-    "fast-terminate",
-    "cross",
+    NONE,
+    MLMPAIR,
+    SMALLSUBSET,
+    BLINDSPOT,
+    SAVE10,
+    FASTTERM,
+    RANDCROSS,
+    MASKCROSS,
 }
 
 
 def PatchedBertSelfAttention(model, patches):
-    if "none" in patches:
+    if NONE in patches:
         logger.warning("Nothing is changed.")
         return model
 
-    blindspot = "blindspot" in patches
+    blindspot = BLINDSPOT in patches
 
     if blindspot:
         logger.warning("Blindspot is on.")
+
+    randcross = RANDCROSS in patches
+
+    if randcross:
+        logger.warning("Random cross out is on.")
 
     def patch_forward(
         self,
@@ -83,6 +99,22 @@ def PatchedBertSelfAttention(model, patches):
             else:
                 attention_mask = attention_mask + blind_spot_mask
 
+        if randcross:
+            length = attention_scores.shape[-1]
+            device = attention_scores.device
+            cross_mask = torch.zeros([length, length], device=device)
+            for _ in range(attention_scores.ndim - cross_mask.ndim):
+                cross_mask.unsqueeze_(0)
+
+            cross_out = torch.rand([length], device=device)
+            cross_mask[..., :, cross_out] -= 10000
+            cross_mask[..., cross_out, :] -= 10000
+
+        if attention_mask is None:
+            attention_mask = cross_mask
+        else:
+            attention_mask = attention_mask + cross_mask
+
         attention_scores = attention_scores / np.sqrt(self.attention_head_size)
         if attention_mask is not None:
             attention_scores = attention_scores + attention_mask
@@ -114,7 +146,7 @@ def PatchedBertSelfAttention(model, patches):
 
 def Patched(model_type, model, patches):
 
-    if "none" in patches:
+    if NONE in patches:
         logger.warning("Nothing is changed.")
         return model
 
@@ -133,7 +165,7 @@ def Patched(model_type, model, patches):
 
 def PatchedForMaskedLM(model_type, model, patches):
 
-    if "none" in patches:
+    if NONE in patches:
         return model
 
     if model_type == BERT_BASE_UNCASED:
@@ -147,7 +179,7 @@ def PatchedForMaskedLM(model_type, model, patches):
 
 def PatchedSequenceClassification(model_type, model, patches):
 
-    if "none" in patches:
+    if NONE in patches:
         logger.warning("Nothing is changed.")
         return model
 
@@ -177,4 +209,4 @@ if __name__ == "__main__":
     # albert = AlbertModel(AlbertConfig())
     # albert = Patched(ALBERT_BASE_V2, albert, ["blindspot"])
 
-    PatchedForMaskedLM(ALBERT_BASE_V2, AlbertForMaskedLM(AlbertConfig()), ["blindspot"])
+    PatchedForMaskedLM(ALBERT_BASE_V2, AlbertForMaskedLM(AlbertConfig()), [BLINDSPOT])

@@ -252,7 +252,7 @@ if __name__ == "__main__":
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     print(model)
     # XXX
-    if "save-10" in args.patches:
+    if "SAVE10" in args.patches:
         args.save_steps = len(dataset) // args.train_batch_size // 10
         logger.warning("saving 10 checkpoints: step = %d", args.save_steps)
 

@@ -18,7 +18,6 @@ Fine-tuning the library models for language modeling on a text file (GPT, GPT-2,
 GPT and GPT-2 are fine-tuned using a causal language modeling (CLM) loss while BERT and RoBERTa are fine-tuned
 using a masked language modeling (MLM) loss.
 """
-
 import argparse
 import gc
 import glob
@@ -32,6 +31,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
+from rich import progress
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -179,14 +179,12 @@ class SplitChainDataset(Dataset):
         # datasets = [d[1] for d in datasets]
         datasets = []
 
-        SMALL_SUBSET = "small-subset"
-        assert SMALL_SUBSET in PATCHES
-        if SMALL_SUBSET in args.patches:
+        if SMALLSUBSET in args.patches:
             size = 10
         else:
             size = 1e9
 
-        for f in tqdm(files):
+        for f in progress.track(files):
             print(f)
             if len(datasets) > size:
                 break
@@ -337,7 +335,7 @@ def train(
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     print(model)
     # XXX
-    if "save-10" in args.patches:
+    if "SAVE10" in args.patches:
         args.save_steps = len(train_dataset) // args.train_batch_size // 10
         logger.warning("saving 10 checkpoints: step = %d", args.save_steps)
 
@@ -516,7 +514,7 @@ def train(
                 steps_trained_in_current_epoch -= 1
                 continue
 
-            if "mlmpair" in args.patches:
+            if MLMPAIR in args.patches:
                 bcl = batch.clone()
                 (_, labels) = mask_tokens(batch, tokenizer, args)
                 inputs = bcl
@@ -617,9 +615,7 @@ def train(
                         output_dir,
                     )
 
-                    FAST_TERM = "fast-terminate"
-                    assert FAST_TERM in PATCHES
-                    if FAST_TERM in args.patches:
+                    if FASTTERM in args.patches:
                         return global_step, tr_loss / global_step
 
             if args.max_steps > 0 and global_step > args.max_steps:
@@ -1140,6 +1136,7 @@ def main():
             logging.getLogger("transformers.modeling_utils").setLevel(
                 logging.WARN
             )  # Reduce logging
+            logging.getLogger("transformers.modeling_utils").addHandler(RichHandler())
         print("Evaluate the following checkpoints: %s", checkpoints)
         for checkpoint in checkpoints:
             global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
