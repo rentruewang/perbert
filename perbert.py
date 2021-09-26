@@ -3,13 +3,14 @@ from types import MethodType
 
 import numpy as np
 import torch
-from torch.nn import Module, Softmax
-from torch.nn import functional as F
+from rich.logging import RichHandler
+from torch.nn import Softmax
 from transformers import AlbertConfig, BertConfig
-from transformers.modeling_bert import *
 from transformers.modeling_albert import *
+from transformers.modeling_bert import *
 
 logger = logging.getLogger(__name__)
+logger.addHandler(RichHandler())
 
 BERT_BASE_UNCASED = "bert-base-uncased"
 ALBERT_BASE_V2 = "albert-base-v2"
@@ -18,76 +19,10 @@ PATCHES = {
     "mlmpair",
     "small-subset",
     "blindspot",
-    "dropsoft",
-    "random",
     "save-10",
     "fast-terminate",
-    "embedding",
-    "gelu-1",
-    "gelu-2",
+    "cross",
 }
-
-
-class DropSoftmax(Module):
-    def __init__(self, p, dim) -> None:
-        super().__init__()
-
-        assert 0 <= p <= 1, p
-        self._p_by_me = p
-        self._dim_by_me = dim
-        self._is_train_by_me = False
-
-    def forward(self, *tensors):
-        if len(tensors) == 1:
-            return self.single_forward(*tensors)
-
-        return [self.single_forward(t) for t in tensors]
-
-    def single_forward(self, tensor):
-        if not self._is_train_by_me:
-            return F.softmax(tensor, dim=self._dim_by_me)
-
-        select = torch.empty_like(tensor).uniform_(0, 1) < self._p_by_me
-        remaining = torch.zeros_like(tensor)
-        remaining[select] = -10000
-        tensor = tensor + remaining
-        out = F.softmax(tensor, dim=self._dim_by_me)
-        return out
-
-    def train(self, is_train=True):
-        self._is_train_by_me = is_train
-        return self
-
-    def eval(self):
-        self._is_train_by_me = False
-        return self
-
-
-class Embedding(torch.nn.Module):
-    def __init__(self, config, gelu=None) -> None:
-        super().__init__()
-        emb = torch.nn.Embedding(config.vocab_size, 768)
-        self.pooler = BertPooler(config)
-
-        if gelu == "1":
-            self.emb = torch.nn.Sequential(
-                emb, torch.nn.Linear(768, 768)
-            )
-        elif gelu == "2":
-            self.emb = torch.nn.Sequential(
-                emb,
-                torch.nn.Linear(768, 3072),
-                torch.nn.GELU(),
-                torch.nn.Linear(3072, 768),
-            )
-        else:
-            assert gelu == None
-            self.emb = emb
-
-    def forward(self, input, *args, **kwargs):
-        output = self.emb(input)
-        pooled = self.pooler(output)
-        return (output, pooled)
 
 
 def PatchedBertSelfAttention(model, patches):
@@ -96,16 +31,9 @@ def PatchedBertSelfAttention(model, patches):
         return model
 
     blindspot = "blindspot" in patches
-    dropsoft = "dropsoft" in patches
 
     if blindspot:
         logger.warning("Blindspot is on.")
-
-    if dropsoft:
-        logger.warning("Dropsoft is on.")
-
-    if dropsoft:
-        model.dropsoft = DropSoftmax(0.5, -1)
 
     def patch_forward(
         self,
@@ -189,15 +117,6 @@ def Patched(model_type, model, patches):
     if "none" in patches:
         logger.warning("Nothing is changed.")
         return model
-
-    if "embedding" in patches:
-        logger.warning("Only embeddings.")
-        if "gelu-1" in patches:
-            return Embedding(BertConfig(), "1")
-        elif "gelu-2" in patches:
-            return Embedding(BertConfig(), "2")
-        else:
-            return Embedding(BertConfig())
 
     if model_type == BERT_BASE_UNCASED:
         for layer in model.encoder.layer:

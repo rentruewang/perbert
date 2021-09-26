@@ -17,7 +17,6 @@
 
 
 import argparse
-import glob
 import json
 import logging
 import os
@@ -25,17 +24,11 @@ import random
 
 import numpy as np
 import torch
-from torch.utils.data import (
-    DataLoader,
-    RandomSampler,
-    SequentialSampler,
-    TensorDataset,
-)
+from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import (
     MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
-    WEIGHTS_NAME,
     AdamW,
     AutoConfig,
     AutoModelForSequenceClassification,
@@ -58,6 +51,7 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+logger.addHandler(RichHandler())
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)

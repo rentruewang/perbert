@@ -231,11 +231,11 @@ def prepare_args():
     return args
 
 
-
 if __name__ == "__main__":
     loggers = [logging.getLogger(name) for name in logging.root.manager.loggerDict]
     for logger in loggers:
         logger.setLevel(logging.INFO)
+        logger.addHandler(RichHandler())
     bert = AutoModelWithLMHead.from_pretrained("bert-base-uncased")
     tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
     args = prepare_args()

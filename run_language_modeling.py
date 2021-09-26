@@ -33,17 +33,10 @@ from typing import Dict, List, Tuple
 import numpy as np
 import torch
 from torch.nn.utils.rnn import pad_sequence
-from torch.utils.data import (
-    DataLoader,
-    Dataset,
-    RandomSampler,
-    SequentialSampler,
-)
-from multiprocessing.pool import ThreadPool
+from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import *
-
 
 from perbert import *
 
@@ -54,6 +47,7 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
+logger.addHandler(RichHandler())
 
 
 MODEL_CONFIG_CLASSES = list(MODEL_WITH_LM_HEAD_MAPPING.keys())
