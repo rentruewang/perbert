@@ -24,6 +24,8 @@ FASTTERM = "fastterm"
 RANDCROSS = "randcross"
 MASKCROSS = "maskcross"
 
+CROSS_ATTN_PROB = 0.15
+
 PATCHES = {
     NONE,
     MLMPAIR,
@@ -107,6 +109,7 @@ def PatchedBertSelfAttention(model, patches):
                 cross_mask.unsqueeze_(0)
 
             cross_out = torch.rand([length], device=device)
+            cross_out = cross_out < CROSS_ATTN_PROB
             cross_mask[..., :, cross_out] -= 10000
             cross_mask[..., cross_out, :] -= 10000
 
@@ -120,10 +123,7 @@ def PatchedBertSelfAttention(model, patches):
             attention_scores = attention_scores + attention_mask
 
         # Normalize the attention scores to probabilities and dropout, as in the original transformer paper.
-        if dropsoft:
-            attn_probs = self.dropsoft(attention_scores)
-        else:
-            attn_probs = Softmax(dim=-1)(attention_scores)
+        attn_probs = Softmax(dim=-1)(attention_scores)
         attn_probs = self.dropout(attn_probs)
 
         # Mask heads if we want to

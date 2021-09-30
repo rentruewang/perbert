@@ -372,14 +372,6 @@ def train(
             * args.num_train_epochs
         )
 
-    EMBEDDING = "embedding"
-    assert EMBEDDING in PATCHES
-    if not EMBEDDING in args.patches:
-        model = (
-            model.module if hasattr(model, "module") else model
-        )  # Take care of distributed/parallel training
-        model.resize_token_embeddings(len(tokenizer))
-
     # Prepare optimizer and schedule (linear warmup and decay)
     no_decay = ["bias", "LayerNorm.weight"]
     optimizer_grouped_parameters = [
