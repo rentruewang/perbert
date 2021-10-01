@@ -18,6 +18,7 @@ Fine-tuning the library models for language modeling on a text file (GPT, GPT-2,
 GPT and GPT-2 are fine-tuned using a causal language modeling (CLM) loss while BERT and RoBERTa are fine-tuned
 using a masked language modeling (MLM) loss.
 """
+
 import argparse
 import gc
 import glob
@@ -31,13 +32,14 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-from rich import progress
+from rich import print, progress
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import *
 
+import richlogger as _
 from perbert import *
 
 try:
@@ -76,12 +78,12 @@ class TextDataset(Dataset):
             "bert-base-uncased" + "_cached_lm_" + str(block_size) + "_" + filename,
         )
         if os.path.exists(cached_features_file) and not args.overwrite_cache:
-            print("Loading features from cached file %s", cached_features_file)
+            logger.info("Loading features from cached file %s", cached_features_file)
             with open(cached_features_file, "rb") as handle:
                 examples = pickle.load(handle)
         else:
             # raise ValueError("not possible")
-            print(
+            logger.info(
                 "Creating features from dataset file at {}".format(
                     (directory, file_path)
                 )
@@ -185,7 +187,7 @@ class SplitChainDataset(Dataset):
             size = 1e9
 
         for f in progress.track(files):
-            print(f)
+            logger.info(f)
             if len(datasets) > size:
                 break
             datasets.append(TextDataset(tokenizer, args, f, block_size))
@@ -193,9 +195,8 @@ class SplitChainDataset(Dataset):
         self.datasets = []
         for dset in datasets:
             self.datasets.append(dset)
-            if len(self) > size:
-                break
-        print("Final length: %d", len(self))
+
+        logger.info("Final length: %d", len(self))
 
     def __len__(self):
         return sum(len(dset) for dset in self.datasets)
@@ -272,7 +273,7 @@ def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -
     )
     checkpoints_to_be_deleted = checkpoints_sorted[:number_of_checkpoints_to_delete]
     for checkpoint in checkpoints_to_be_deleted:
-        print(
+        logger.info(
             "Deleting older checkpoint [{}] due to args.save_total_limit".format(
                 checkpoint
             )
@@ -335,7 +336,7 @@ def train(
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     print(model)
     # XXX
-    if "SAVE10" in args.patches:
+    if SAVE10 in args.patches:
         args.save_steps = len(train_dataset) // args.train_batch_size // 10
         logger.warning("saving 10 checkpoints: step = %d", args.save_steps)
 
@@ -1000,12 +1001,6 @@ def main():
         args.n_gpu = 1
     args.device = device
 
-    # Setup logging
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        level=logging.INFO if args.local_rank in [-1, 0] else logging.WARN,
-    )
     logger.warning(
         "Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
         args.local_rank,

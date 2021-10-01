@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from rich.logging import RichHandler
 from torch import Tensor
-from torch.nn import Softmax, Module
+from torch.nn import Module, Softmax
 from transformers import AlbertConfig, BertConfig
 from transformers.modeling_albert import *
 from transformers.modeling_bert import *

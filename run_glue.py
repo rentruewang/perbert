@@ -14,8 +14,6 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 """ Finetuning the library models for sequence classification on GLUE (Bert, XLM, XLNet, RoBERTa, Albert, XLM-RoBERTa)."""
-
-
 import argparse
 import json
 import logging
@@ -42,6 +40,7 @@ from transformers import (
 from transformers import glue_output_modes as output_modes
 from transformers import glue_processors as processors
 
+import richlogger as _
 from perbert import *
 
 try:
@@ -755,12 +754,6 @@ def main():
         args.n_gpu = 1
     args.device = device
 
-    # Setup logging
-    logging.basicConfig(
-        format="%(asctime)s - %(levelname)s - %(name)s -   %(message)s",
-        datefmt="%m/%d/%Y %H:%M:%S",
-        level=logging.INFO if args.local_rank in [-1, 0] else logging.WARN,
-    )
     logger.warning(
         "Process rank: %s, device: %s, n_gpu: %s, distributed training: %s, 16-bits training: %s",
         args.local_rank,
