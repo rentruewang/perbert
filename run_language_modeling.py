@@ -39,7 +39,7 @@ from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import *
 
-import richlogger as _
+import richlogger
 from perbert import *
 
 try:
@@ -49,7 +49,7 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
-logger.addHandler(RichHandler())
+richlogger.install()
 
 
 MODEL_CONFIG_CLASSES = list(MODEL_WITH_LM_HEAD_MAPPING.keys())

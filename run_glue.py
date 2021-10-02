@@ -22,9 +22,9 @@ import random
 
 import numpy as np
 import torch
+from rich import print, progress
 from torch.utils.data import DataLoader, RandomSampler, SequentialSampler, TensorDataset
 from torch.utils.data.distributed import DistributedSampler
-from tqdm import tqdm, trange
 from transformers import (
     MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING,
     AdamW,
@@ -40,7 +40,7 @@ from transformers import (
 from transformers import glue_output_modes as output_modes
 from transformers import glue_processors as processors
 
-import richlogger as _
+import richlogger
 from perbert import *
 
 try:
@@ -50,7 +50,8 @@ except ImportError:
 
 
 logger = logging.getLogger(__name__)
-logger.addHandler(RichHandler())
+
+richlogger.install()
 
 MODEL_CONFIG_CLASSES = list(MODEL_FOR_SEQUENCE_CLASSIFICATION_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
@@ -71,6 +72,8 @@ def set_seed(args):
 
 def train(args, train_dataset, model, tokenizer):
     """Train the model"""
+    logger.warning("Training")
+
     if args.local_rank in [-1, 0]:
         tb_writer = SummaryWriter(os.path.join("runs", args.output_dir))
 
@@ -212,19 +215,11 @@ def train(args, train_dataset, model, tokenizer):
 
     tr_loss, logging_loss = 0.0, 0.0
     model.zero_grad()
-    train_iterator = trange(
-        epochs_trained,
-        int(args.num_train_epochs),
-        desc="Epoch",
-        disable=args.local_rank not in [-1, 0],
-    )
+    train_iterator = range(epochs_trained, int(args.num_train_epochs))
     set_seed(args)  # Added here for reproductibility
-    for _ in train_iterator:
-        epoch_iterator = tqdm(
-            train_dataloader,
-            desc="Iteration",
-            disable=args.local_rank not in [-1, 0],
-        )
+    for ti in train_iterator:
+        logger.warning("Iteration %d", ti)
+        epoch_iterator = progress.track(train_dataloader)
         for step, batch in enumerate(epoch_iterator):
 
             # Skip past any already trained steps if resuming training
@@ -350,6 +345,8 @@ def train(args, train_dataset, model, tokenizer):
 
 
 def evaluate(args, model, tokenizer, prefix=""):
+    logger.warning("Evaluation.")
+
     # Loop to handle MNLI double evaluation (matched, mis-matched)
     eval_task_names = (
         ("mnli", "mnli-mm") if args.task_name == "mnli" else (args.task_name,)
@@ -388,7 +385,7 @@ def evaluate(args, model, tokenizer, prefix=""):
         nb_eval_steps = 0
         preds = None
         out_label_ids = None
-        for batch in tqdm(eval_dataloader, desc="Evaluating"):
+        for batch in progress.track(eval_dataloader):
             model.eval()
             batch = tuple(t.to(args.device) for t in batch)
 
@@ -715,6 +712,8 @@ def main():
     parser.add_argument("--patches", type=str, nargs="+", required=True)
     args = parser.parse_args()
 
+    logger.warning("Arguments %s", args)
+
     for patch in args.patches:
         assert patch in PATCHES, patch
 
@@ -817,61 +816,61 @@ def main():
 
     # Saving best-practices: if you use defaults names for the model, you can reload it using from_pretrained()
     # XXX: no reload model
-    # if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
-    #     # Create output directory if needed
-    #     if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
-    #         os.makedirs(args.output_dir)
+    if args.do_train and (args.local_rank == -1 or torch.distributed.get_rank() == 0):
+        # Create output directory if needed
+        if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
+            os.makedirs(args.output_dir)
 
-    #     logger.info("Saving model checkpoint to %s", args.output_dir)
-    #     # Save a trained model, configuration and tokenizer using `save_pretrained()`.
-    #     # They can then be reloaded using `from_pretrained()`
-    #     model_to_save = (
-    #         model.module if hasattr(model, "module") else model
-    #     )  # Take care of distributed/parallel training
-    #     model_to_save.save_pretrained(args.output_dir)
-    #     tokenizer.save_pretrained(args.output_dir)
+        logger.info("Saving model checkpoint to %s", args.output_dir)
+        # Save a trained model, configuration and tokenizer using `save_pretrained()`.
+        # They can then be reloaded using `from_pretrained()`
+        model_to_save = (
+            model.module if hasattr(model, "module") else model
+        )  # Take care of distributed/parallel training
+        model_to_save.save_pretrained(args.output_dir)
+        tokenizer.save_pretrained(args.output_dir)
 
-    #     # Good practice: save your training arguments together with the trained model
-    #     torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
+        # Good practice: save your training arguments together with the trained model
+        torch.save(args, os.path.join(args.output_dir, "training_args.bin"))
 
-    #     # Load a trained model and vocabulary that you have fine-tuned
-    #     model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)
-    #     model = PatchedSequenceClassification(
-    #         args.model_type, model, patches=args.patches
-    #     )
+        # Load a trained model and vocabulary that you have fine-tuned
+        model = AutoModelForSequenceClassification.from_pretrained(args.output_dir)
+        model = PatchedSequenceClassification(
+            args.model_type, model, patches=args.patches
+        )
 
-    #     tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
-    #     model.to(args.device)
+        tokenizer = AutoTokenizer.from_pretrained(args.output_dir)
+        model.to(args.device)
 
     # Evaluation
     results = {}
     if args.do_eval and args.local_rank in [-1, 0]:
-        # tokenizer = AutoTokenizer.from_pretrained(
-        #     args.output_dir, do_lower_case=args.do_lower_case
-        # )
-        # checkpoints = [args.output_dir]
-        # if args.eval_all_checkpoints:
-        #     checkpoints = list(
-        #         os.path.dirname(c)
-        #         for c in sorted(
-        #             glob.glob(args.output_dir + "/**/" + WEIGHTS_NAME, recursive=True)
-        #         )
-        #     )
-        #     logging.getLogger("transformers.modeling_utils").setLevel(
-        #         logging.WARN
-        #     )  # Reduce logging
-        # logger.info("Evaluate the following checkpoints: %s", checkpoints)
-        # for checkpoint in checkpoints:
-        #     global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
-        #     prefix = (
-        #         checkpoint.split("/")[-1] if checkpoint.find("checkpoint") != -1 else ""
-        #     )
+        tokenizer = AutoTokenizer.from_pretrained(
+            args.output_dir, do_lower_case=args.do_lower_case
+        )
+        checkpoints = [args.output_dir]
+        if args.eval_all_checkpoints:
+            checkpoints = list(
+                os.path.dirname(c)
+                for c in sorted(
+                    glob.glob(args.output_dir + "/**/" + WEIGHTS_NAME, recursive=True)
+                )
+            )
+            logging.getLogger("transformers.modeling_utils").setLevel(
+                logging.WARN
+            )  # Reduce logging
+        logger.info("Evaluate the following checkpoints: %s", checkpoints)
+        for checkpoint in checkpoints:
+            global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
+            prefix = (
+                checkpoint.split("/")[-1] if checkpoint.find("checkpoint") != -1 else ""
+            )
 
-        #     model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
-        #     # XXX: custom model
-        #     model = PatchedSequenceClassification(
-        #         args.model_type, model, patches=args.patches
-        #     )
+            model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
+            # XXX: custom model
+            model = PatchedSequenceClassification(
+                args.model_type, model, patches=args.patches
+            )
 
         model.to(args.device)
         prefix = ""

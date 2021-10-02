@@ -6,7 +6,7 @@ import torch
 from rich.logging import RichHandler
 from torch import Tensor
 from torch.nn import Module, Softmax
-from transformers import AlbertConfig, BertConfig
+from transformers import BertConfig
 from transformers.modeling_albert import *
 from transformers.modeling_bert import *
 from transformers.tokenization_bert import BertTokenizer
