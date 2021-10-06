@@ -848,6 +848,7 @@ def main():
     # Evaluation
     results = {}
     if args.do_eval and args.local_rank in [-1, 0]:
+        logger.warning("Running evaluation.")
         tokenizer = AutoTokenizer.from_pretrained(
             args.output_dir, do_lower_case=args.do_lower_case
         )
@@ -886,3 +887,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+    logger.critical("DONE")
