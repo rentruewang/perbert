@@ -353,6 +353,11 @@ def PatchedBertSelfAttention(model, patches, layer_num):
                 attention_scores.shape,
             ]
 
+            if attention_mask is None:
+                attention_mask = cross_mask
+            else:
+                attention_mask = attention_mask + cross_mask
+
         if maskcross:
             assert masked_lm_labels is not None
             length = attention_scores.shape[-1]
@@ -363,10 +368,10 @@ def PatchedBertSelfAttention(model, patches, layer_num):
                 attention_scores.shape,
             ]
 
-        if attention_mask is None:
-            attention_mask = cross_mask
-        else:
-            attention_mask = attention_mask + cross_mask
+            if attention_mask is None:
+                attention_mask = cross_mask
+            else:
+                attention_mask = attention_mask + cross_mask
 
         attention_scores = attention_scores / np.sqrt(self.attention_head_size)
         if attention_mask is not None:
