@@ -265,22 +265,28 @@ def patched_bertmlm_forward(
     return outputs  # (masked_lm_loss), (ltr_lm_loss), prediction_scores, (hidden_states), (attentions)
 
 
-def PatchedBertSelfAttention(model, patches):
+def PatchedBertSelfAttention(model, patches, layer_num):
     if NONE in patches:
         logger.warning("Nothing is changed.")
         return model
 
     blindspot = BLINDSPOT in patches
+    randcross = RANDCROSS in patches
+    maskcross = MASKCROSS in patches
+    firstlayer = FIRSTLAYER in patches
+
+    if firstlayer:
+        if layer_num == 0:
+            logger.warning("First layer %d on.", layer_num)
+        else:
+            logger.warning("Layer %d not first layer. Features turned off.", layer_num)
+            blindspot = randcross = maskcross = False
 
     if blindspot:
         logger.warning("Blindspot is on.")
 
-    randcross = RANDCROSS in patches
-
     if randcross:
         logger.warning("Random cross out is on.")
-
-    maskcross = MASKCROSS in patches
 
     if maskcross:
         logger.warning("Mask on attention is enabled.")
@@ -397,20 +403,13 @@ def PatchedBert(model_type, model, patches):
     if model_type == BERT_BASE_UNCASED:
         model.encoder.forward = MethodType(patch_bertenc_forward, model.encoder)
         for (idx, layer) in enumerate(model.encoder.layer):
-            if EMBEDDING in patches:
-                break
-
-            if FIRSTLAYER in patches and idx == 1:
-                logger.warning("Only first layer.")
-                break
-
             logger.warning("Substituting Bert layer %d", idx)
             layer.forward = MethodType(patch_bertenclay_forward, layer)
             layer.attention.forward = MethodType(
                 patch_bertattn_forward, layer.attention
             )
             layer.attention.self = PatchedBertSelfAttention(
-                layer.attention.self, patches
+                layer.attention.self, patches, idx
             )
 
         yes_embedding = EMBEDDING in patches
