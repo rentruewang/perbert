@@ -5,7 +5,7 @@ import numpy as np
 import torch
 from rich.logging import RichHandler
 from torch import Tensor
-from torch.nn import Module, Softmax
+from torch.nn import Module, Softmax, Embedding
 from transformers import BertConfig
 from transformers.modeling_albert import *
 from transformers.modeling_bert import *
@@ -25,6 +25,8 @@ SAVE10 = "save10"
 FASTTERM = "fastterm"
 RANDCROSS = "randcross"
 MASKCROSS = "maskcross"
+EMBEDDING = "embedding"
+FIRSTLAYER = "firstlayer"
 
 CROSS_ATTN_PROB = 0.15
 
@@ -37,6 +39,8 @@ PATCHES = {
     FASTTERM,
     RANDCROSS,
     MASKCROSS,
+    EMBEDDING,
+    FIRSTLAYER,
 }
 
 
@@ -67,7 +71,7 @@ class CrossDropout(Module):
         return mask
 
 
-def patch_bert_forward(
+def forward(
     self,
     input_ids=None,
     attention_mask=None,
@@ -75,142 +79,37 @@ def patch_bert_forward(
     position_ids=None,
     head_mask=None,
     inputs_embeds=None,
-    encoder_hidden_states=None,
-    encoder_attention_mask=None,
-    masked_lm_labels=None,
+    labels=None,
 ):
-    assert isinstance(self, BertModel), type(self)
-
-    if input_ids is not None and inputs_embeds is not None:
-        raise ValueError(
-            "You cannot specify both input_ids and inputs_embeds at the same time"
-        )
-    elif input_ids is not None:
-        input_shape = input_ids.size()
-    elif inputs_embeds is not None:
-        input_shape = inputs_embeds.size()[:-1]
-    else:
-        raise ValueError("You have to specify either input_ids or inputs_embeds")
-
-    device = input_ids.device if input_ids is not None else inputs_embeds.device
-
-    if attention_mask is None:
-        attention_mask = torch.ones(input_shape, device=device)
-    if token_type_ids is None:
-        token_type_ids = torch.zeros(input_shape, dtype=torch.long, device=device)
-
-    # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
-    # ourselves in which case we just need to make it broadcastable to all heads.
-    if attention_mask.dim() == 3:
-        extended_attention_mask = attention_mask[:, None, :, :]
-    elif attention_mask.dim() == 2:
-        # Provided a padding mask of dimensions [batch_size, seq_length]
-        # - if the model is a decoder, apply a causal mask in addition to the padding mask
-        # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
-        if self.config.is_decoder:
-            batch_size, seq_length = input_shape
-            seq_ids = torch.arange(seq_length, device=device)
-            causal_mask = (
-                seq_ids[None, None, :].repeat(batch_size, seq_length, 1)
-                <= seq_ids[None, :, None]
-            )
-            causal_mask = causal_mask.to(
-                attention_mask.dtype
-            )  # causal and attention masks must have same type with pytorch version < 1.3
-            extended_attention_mask = (
-                causal_mask[:, None, :, :] * attention_mask[:, None, None, :]
-            )
-        else:
-            extended_attention_mask = attention_mask[:, None, None, :]
-    else:
-        raise ValueError(
-            "Wrong shape for input_ids (shape {}) or attention_mask (shape {})".format(
-                input_shape, attention_mask.shape
-            )
-        )
-
-    # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
-    # masked positions, this operation will create a tensor which is 0.0 for
-    # positions we want to attend and -10000.0 for masked positions.
-    # Since we are adding it to the raw scores before the softmax, this is
-    # effectively the same as removing these entirely.
-    extended_attention_mask = extended_attention_mask.to(
-        dtype=next(self.parameters()).dtype
-    )  # fp16 compatibility
-    extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
-
-    # If a 2D ou 3D attention mask is provided for the cross-attention
-    # we need to make broadcastabe to [batch_size, num_heads, seq_length, seq_length]
-    if self.config.is_decoder and encoder_hidden_states is not None:
-        (
-            encoder_batch_size,
-            encoder_sequence_length,
-            _,
-        ) = encoder_hidden_states.size()
-        encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
-        if encoder_attention_mask is None:
-            encoder_attention_mask = torch.ones(encoder_hidden_shape, device=device)
-
-        if encoder_attention_mask.dim() == 3:
-            encoder_extended_attention_mask = encoder_attention_mask[:, None, :, :]
-        elif encoder_attention_mask.dim() == 2:
-            encoder_extended_attention_mask = encoder_attention_mask[:, None, None, :]
-        else:
-            raise ValueError(
-                "Wrong shape for encoder_hidden_shape (shape {}) or encoder_attention_mask (shape {})".format(
-                    encoder_hidden_shape, encoder_attention_mask.shape
-                )
-            )
-
-        encoder_extended_attention_mask = encoder_extended_attention_mask.to(
-            dtype=next(self.parameters()).dtype
-        )  # fp16 compatibility
-        encoder_extended_attention_mask = (
-            1.0 - encoder_extended_attention_mask
-        ) * -10000.0
-    else:
-        encoder_extended_attention_mask = None
-
-    # Prepare head mask if needed
-    # 1.0 in head_mask indicate we keep the head
-    # attention_probs has shape bsz x n_heads x N x N
-    # input head_mask has shape [num_heads] or [num_hidden_layers x num_heads]
-    # and head_mask is converted to shape [num_hidden_layers x batch x num_heads x seq_length x seq_length]
-    if head_mask is not None:
-        if head_mask.dim() == 1:
-            head_mask = head_mask.unsqueeze(0).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
-            head_mask = head_mask.expand(self.config.num_hidden_layers, -1, -1, -1, -1)
-        elif head_mask.dim() == 2:
-            head_mask = (
-                head_mask.unsqueeze(1).unsqueeze(-1).unsqueeze(-1)
-            )  # We can specify head_mask for each layer
-        head_mask = head_mask.to(
-            dtype=next(self.parameters()).dtype
-        )  # switch to fload if need + fp16 compatibility
-    else:
-        head_mask = [None] * self.config.num_hidden_layers
-
-    embedding_output = self.embeddings(
-        input_ids=input_ids,
-        position_ids=position_ids,
+    outputs = self.bert(
+        input_ids,
+        attention_mask=attention_mask,
         token_type_ids=token_type_ids,
+        position_ids=position_ids,
+        head_mask=head_mask,
         inputs_embeds=inputs_embeds,
     )
-    encoder_outputs = self.encoder(
-        embedding_output,
-        attention_mask=extended_attention_mask,
-        head_mask=head_mask,
-        encoder_hidden_states=encoder_hidden_states,
-        encoder_attention_mask=encoder_extended_attention_mask,
-        masked_lm_labels=masked_lm_labels,
-    )
-    sequence_output = encoder_outputs[0]
-    pooled_output = self.pooler(sequence_output)
 
-    outputs = (sequence_output, pooled_output,) + encoder_outputs[
-        1:
-    ]  # add hidden_states and attentions if they are here
-    return outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
+    pooled_output = outputs[1]
+
+    pooled_output = self.dropout(pooled_output)
+    logits = self.classifier(pooled_output)
+
+    outputs = (logits,) + outputs[
+        2:
+    ]  # add hidden states and attention if they are here
+
+    if labels is not None:
+        if self.num_labels == 1:
+            #  We are doing regression
+            loss_fct = MSELoss()
+            loss = loss_fct(logits.view(-1), labels.view(-1))
+        else:
+            loss_fct = CrossEntropyLoss()
+            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
+        outputs = (loss,) + outputs
+
+    return outputs  # (loss), logits, (hidden_states), (attentions)
 
 
 def patch_bertenc_forward(
@@ -497,13 +396,191 @@ def PatchedBert(model_type, model, patches):
 
     if model_type == BERT_BASE_UNCASED:
         model.encoder.forward = MethodType(patch_bertenc_forward, model.encoder)
-        for layer in model.encoder.layer:
+        for (idx, layer) in enumerate(model.encoder.layer):
+            if EMBEDDING in patches:
+                break
+
+            if FIRSTLAYER in patches and idx == 1:
+                logger.warning("Only first layer.")
+                break
+
+            logger.warning("Substituting Bert layer %d", idx)
             layer.forward = MethodType(patch_bertenclay_forward, layer)
             layer.attention.forward = MethodType(
                 patch_bertattn_forward, layer.attention
             )
             layer.attention.self = PatchedBertSelfAttention(
                 layer.attention.self, patches
+            )
+
+        yes_embedding = EMBEDDING in patches
+        if yes_embedding:
+            logger.warning("Only embedding layer is used.")
+
+        def patch_bert_forward(
+            self,
+            input_ids=None,
+            attention_mask=None,
+            token_type_ids=None,
+            position_ids=None,
+            head_mask=None,
+            inputs_embeds=None,
+            encoder_hidden_states=None,
+            encoder_attention_mask=None,
+            masked_lm_labels=None,
+        ):
+            assert isinstance(self, BertModel), type(self)
+
+            if input_ids is not None and inputs_embeds is not None:
+                raise ValueError(
+                    "You cannot specify both input_ids and inputs_embeds at the same time"
+                )
+            elif input_ids is not None:
+                input_shape = input_ids.size()
+            elif inputs_embeds is not None:
+                input_shape = inputs_embeds.size()[:-1]
+            else:
+                raise ValueError(
+                    "You have to specify either input_ids or inputs_embeds"
+                )
+
+            device = input_ids.device if input_ids is not None else inputs_embeds.device
+
+            if attention_mask is None:
+                attention_mask = torch.ones(input_shape, device=device)
+            if token_type_ids is None:
+                token_type_ids = torch.zeros(
+                    input_shape, dtype=torch.long, device=device
+                )
+
+            # We can provide a self-attention mask of dimensions [batch_size, from_seq_length, to_seq_length]
+            # ourselves in which case we just need to make it broadcastable to all heads.
+            if attention_mask.dim() == 3:
+                extended_attention_mask = attention_mask[:, None, :, :]
+            elif attention_mask.dim() == 2:
+                # Provided a padding mask of dimensions [batch_size, seq_length]
+                # - if the model is a decoder, apply a causal mask in addition to the padding mask
+                # - if the model is an encoder, make the mask broadcastable to [batch_size, num_heads, seq_length, seq_length]
+                if self.config.is_decoder:
+                    batch_size, seq_length = input_shape
+                    seq_ids = torch.arange(seq_length, device=device)
+                    causal_mask = (
+                        seq_ids[None, None, :].repeat(batch_size, seq_length, 1)
+                        <= seq_ids[None, :, None]
+                    )
+                    causal_mask = causal_mask.to(
+                        attention_mask.dtype
+                    )  # causal and attention masks must have same type with pytorch version < 1.3
+                    extended_attention_mask = (
+                        causal_mask[:, None, :, :] * attention_mask[:, None, None, :]
+                    )
+                else:
+                    extended_attention_mask = attention_mask[:, None, None, :]
+            else:
+                raise ValueError(
+                    "Wrong shape for input_ids (shape {}) or attention_mask (shape {})".format(
+                        input_shape, attention_mask.shape
+                    )
+                )
+
+            # Since attention_mask is 1.0 for positions we want to attend and 0.0 for
+            # masked positions, this operation will create a tensor which is 0.0 for
+            # positions we want to attend and -10000.0 for masked positions.
+            # Since we are adding it to the raw scores before the softmax, this is
+            # effectively the same as removing these entirely.
+            extended_attention_mask = extended_attention_mask.to(
+                dtype=next(self.parameters()).dtype
+            )  # fp16 compatibility
+            extended_attention_mask = (1.0 - extended_attention_mask) * -10000.0
+
+            # If a 2D ou 3D attention mask is provided for the cross-attention
+            # we need to make broadcastabe to [batch_size, num_heads, seq_length, seq_length]
+            if self.config.is_decoder and encoder_hidden_states is not None:
+                (
+                    encoder_batch_size,
+                    encoder_sequence_length,
+                    _,
+                ) = encoder_hidden_states.size()
+                encoder_hidden_shape = (encoder_batch_size, encoder_sequence_length)
+                if encoder_attention_mask is None:
+                    encoder_attention_mask = torch.ones(
+                        encoder_hidden_shape, device=device
+                    )
+
+                if encoder_attention_mask.dim() == 3:
+                    encoder_extended_attention_mask = encoder_attention_mask[
+                        :, None, :, :
+                    ]
+                elif encoder_attention_mask.dim() == 2:
+                    encoder_extended_attention_mask = encoder_attention_mask[
+                        :, None, None, :
+                    ]
+                else:
+                    raise ValueError(
+                        "Wrong shape for encoder_hidden_shape (shape {}) or encoder_attention_mask (shape {})".format(
+                            encoder_hidden_shape, encoder_attention_mask.shape
+                        )
+                    )
+
+                encoder_extended_attention_mask = encoder_extended_attention_mask.to(
+                    dtype=next(self.parameters()).dtype
+                )  # fp16 compatibility
+                encoder_extended_attention_mask = (
+                    1.0 - encoder_extended_attention_mask
+                ) * -10000.0
+            else:
+                encoder_extended_attention_mask = None
+
+            # Prepare head mask if needed
+            # 1.0 in head_mask indicate we keep the head
+            # attention_probs has shape bsz x n_heads x N x N
+            # input head_mask has shape [num_heads] or [num_hidden_layers x num_heads]
+            # and head_mask is converted to shape [num_hidden_layers x batch x num_heads x seq_length x seq_length]
+            if head_mask is not None:
+                if head_mask.dim() == 1:
+                    head_mask = (
+                        head_mask.unsqueeze(0).unsqueeze(0).unsqueeze(-1).unsqueeze(-1)
+                    )
+                    head_mask = head_mask.expand(
+                        self.config.num_hidden_layers, -1, -1, -1, -1
+                    )
+                elif head_mask.dim() == 2:
+                    head_mask = (
+                        head_mask.unsqueeze(1).unsqueeze(-1).unsqueeze(-1)
+                    )  # We can specify head_mask for each layer
+                head_mask = head_mask.to(
+                    dtype=next(self.parameters()).dtype
+                )  # switch to fload if need + fp16 compatibility
+            else:
+                head_mask = [None] * self.config.num_hidden_layers
+
+            embedding_output = self.embeddings(
+                input_ids=input_ids,
+                position_ids=position_ids,
+                token_type_ids=token_type_ids,
+                inputs_embeds=inputs_embeds,
+            )
+
+            if yes_embedding:
+                sequence_output = embedding_output
+                encoder_outputs = tuple([sequence_output])
+            else:
+                encoder_outputs = self.encoder(
+                    embedding_output,
+                    attention_mask=extended_attention_mask,
+                    head_mask=head_mask,
+                    encoder_hidden_states=encoder_hidden_states,
+                    encoder_attention_mask=encoder_extended_attention_mask,
+                    masked_lm_labels=masked_lm_labels,
+                )
+                sequence_output = encoder_outputs[0]
+            pooled_output = self.pooler(sequence_output)
+
+            outputs = (sequence_output, pooled_output,) + encoder_outputs[
+                1:
+            ]  # add hidden_states and attentions if they are here
+            return (
+                outputs  # sequence_output, pooled_output, (hidden_states), (attentions)
             )
 
         model.forward = MethodType(patch_bert_forward, model)
