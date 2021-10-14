@@ -12,7 +12,7 @@ from transformers.modeling_bert import *
 from transformers.tokenization_bert import BertTokenizer
 
 logger = logging.getLogger(__name__)
-logger.addHandler(RichHandler())
+logger.addHandler(RichHandler(logging.WARNING))
 
 BERT_BASE_UNCASED = "bert-base-uncased"
 # ALBERT_BASE_V2 = "albert-base-v2"
@@ -20,7 +20,9 @@ BERT_BASE_UNCASED = "bert-base-uncased"
 NONE = "none"
 MLMPAIR = "mlmpair"
 SMALLSUBSET = "smallsubset"
-BLINDSPOT = "blindspot"
+MASKSLASH = "maskslash"
+MASKDOT = "maskdot"
+ANDDECAY = "anddecay"
 SAVE10 = "save10"
 FASTTERM = "fastterm"
 RANDCROSS = "randcross"
@@ -34,7 +36,9 @@ PATCHES = {
     NONE,
     MLMPAIR,
     SMALLSUBSET,
-    BLINDSPOT,
+    MASKSLASH,
+    MASKDOT,
+    ANDDECAY,
     SAVE10,
     FASTTERM,
     RANDCROSS,
@@ -45,8 +49,16 @@ PATCHES = {
 
 
 class CrossDropout(Module):
-    def __init__(self) -> None:
+    def __init__(self, mask_cross: bool, mask_dot: bool, and_decay: bool) -> None:
         super().__init__()
+        self.mask_cross = mask_cross
+        self.mask_dot = mask_dot
+        if and_decay:
+            self.rate = 0
+        else:
+            self.rate = 10000
+
+        logger.warning("Initial rate: %f", self.rate)
 
     def forward(self, drop: Tensor) -> Tensor:
         assert drop.ndim == 2, drop.shape
@@ -64,52 +76,17 @@ class CrossDropout(Module):
         if not self.training:
             return mask
 
-        for (m, d) in zip(mask, drop):
-            m[:, :, d] -= 10000
-            m[:, d, :] -= 10000
+        if self.mask_cross:
+            for (m, d) in zip(mask, drop):
+                m[:, :, d] -= self.rate
+                m[:, d, :] -= self.rate
+            self.rate += 1 / 1000
+
+        if self.mask_dot:
+            for (m, d) in zip(mask, drop):
+                m[:, d, d] -= 10000.0
 
         return mask
-
-
-def forward(
-    self,
-    input_ids=None,
-    attention_mask=None,
-    token_type_ids=None,
-    position_ids=None,
-    head_mask=None,
-    inputs_embeds=None,
-    labels=None,
-):
-    outputs = self.bert(
-        input_ids,
-        attention_mask=attention_mask,
-        token_type_ids=token_type_ids,
-        position_ids=position_ids,
-        head_mask=head_mask,
-        inputs_embeds=inputs_embeds,
-    )
-
-    pooled_output = outputs[1]
-
-    pooled_output = self.dropout(pooled_output)
-    logits = self.classifier(pooled_output)
-
-    outputs = (logits,) + outputs[
-        2:
-    ]  # add hidden states and attention if they are here
-
-    if labels is not None:
-        if self.num_labels == 1:
-            #  We are doing regression
-            loss_fct = MSELoss()
-            loss = loss_fct(logits.view(-1), labels.view(-1))
-        else:
-            loss_fct = CrossEntropyLoss()
-            loss = loss_fct(logits.view(-1, self.num_labels), labels.view(-1))
-        outputs = (loss,) + outputs
-
-    return outputs  # (loss), logits, (hidden_states), (attentions)
 
 
 def patch_bertenc_forward(
@@ -270,7 +247,9 @@ def PatchedBertSelfAttention(model, patches, layer_num):
         logger.warning("Nothing is changed.")
         return model
 
-    blindspot = BLINDSPOT in patches
+    maskslash = MASKSLASH in patches
+    maskdot = MASKDOT in patches
+    anddecay = ANDDECAY in patches
     randcross = RANDCROSS in patches
     maskcross = MASKCROSS in patches
     firstlayer = FIRSTLAYER in patches
@@ -280,16 +259,22 @@ def PatchedBertSelfAttention(model, patches, layer_num):
             logger.warning("First layer %d on.", layer_num)
         else:
             logger.warning("Layer %d not first layer. Features turned off.", layer_num)
-            blindspot = randcross = maskcross = False
+            maskslash = maskdot = anddecay = randcross = maskcross = False
 
-    if blindspot:
-        logger.warning("Blindspot is on.")
+    if maskslash:
+        logger.warning("Mask slash is on.")
 
     if randcross:
         logger.warning("Random cross out is on.")
 
     if maskcross:
         logger.warning("Mask on attention is enabled.")
+
+    if maskdot:
+        logger.warning("Mask dot is on.")
+
+    if anddecay:
+        logger.warning("And decay is on.")
 
     def patch_bertenclayattn_forward(
         self,
@@ -325,7 +310,7 @@ def PatchedBertSelfAttention(model, patches, layer_num):
         # Take the dot product between "query" and "key" to get the raw attention scores.
         attention_scores = query @ key.transpose(-1, -2)
 
-        if blindspot:
+        if maskslash:
             diag = torch.eye(attention_scores.shape[-1], device=attention_scores.device)
             for _ in range(attention_scores.ndim - diag.ndim):
                 diag.unsqueeze_(0)
@@ -358,7 +343,7 @@ def PatchedBertSelfAttention(model, patches, layer_num):
             else:
                 attention_mask = attention_mask + cross_mask
 
-        if maskcross:
+        if maskcross or maskdot:
             assert masked_lm_labels is not None
             length = attention_scores.shape[-1]
             device = attention_scores.device
@@ -393,7 +378,7 @@ def PatchedBertSelfAttention(model, patches, layer_num):
 
         return (context, attn_probs) if self.output_attentions else (context,)
 
-    model.cross_drop = CrossDropout()
+    model.cross_drop = CrossDropout(maskcross, maskdot, anddecay)
     model.forward = MethodType(patch_bertenclayattn_forward, model)
 
     return model
@@ -638,7 +623,7 @@ def PatchedSequenceClassification(model_type, model, patches):
 
 if __name__ == "__main__":
     bert = BertModel(BertConfig())
-    bert = PatchedBert(BERT_BASE_UNCASED, bert, [BLINDSPOT, RANDCROSS])
+    bert = PatchedBert(BERT_BASE_UNCASED, bert, [MASKSLASH, RANDCROSS])
 
     tokenizer = BertTokenizer.from_pretrained(BERT_BASE_UNCASED)
     texts = ["hello world", "goodbye world"]
@@ -647,6 +632,6 @@ if __name__ == "__main__":
     print(out)
 
     # albert = AlbertModel(AlbertConfig())
-    # albert = Patched(ALBERT_BASE_V2, albert, ["blindspot"])
+    # albert = Patched(ALBERT_BASE_V2, albert, [MASKSLASH])
 
-    # PatchedForMaskedLM(ALBERT_BASE_V2, AlbertForMaskedLM(AlbertConfig()), [BLINDSPOT])
+    # PatchedForMaskedLM(ALBERT_BASE_V2, AlbertForMaskedLM(AlbertConfig()), [MASKSLASH])
