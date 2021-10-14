@@ -268,7 +268,7 @@ def PatchedBertSelfAttention(model, patches, layer_num):
         logger.warning("Random cross out is on.")
 
     if maskcross:
-        logger.warning("Mask on attention is enabled.")
+        logger.warning("Mask cross is enabled.")
 
     if maskdot:
         logger.warning("Mask dot is on.")
