@@ -54,11 +54,17 @@ class CrossDropout(Module):
         self.mask_cross = mask_cross
         self.mask_dot = mask_dot
         if and_decay:
+            if not self.mask_cross:
+                raise ValueError("this is stupid.")
+
             self.rate = 0
         else:
             self.rate = 10000
 
         logger.warning("Initial rate: %f", self.rate)
+        logger.warning(
+            "Dot: %s, Cross: %s, Decay: %s", self.mask_dot, self.mask_cross, and_decay
+        )
 
     def forward(self, drop: Tensor) -> Tensor:
         assert drop.ndim == 2, drop.shape
