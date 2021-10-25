@@ -29,6 +29,7 @@ RANDCROSS = "randcross"
 MASKCROSS = "maskcross"
 EMBEDDING = "embedding"
 FIRSTLAYER = "firstlayer"
+EARLYFOCUS = "earlyfocus"
 
 CROSS_ATTN_PROB = 0.15
 
@@ -45,6 +46,7 @@ PATCHES = {
     MASKCROSS,
     EMBEDDING,
     FIRSTLAYER,
+    EARLYFOCUS,
 }
 
 

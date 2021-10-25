@@ -572,10 +572,20 @@ def train(
                     )
                     logging_loss = tr_loss
 
+                def early_save(global_step, save_steps):
+                    if EARLYFOCUS in args.patches:
+                        return (
+                            global_step % save_steps < 3
+                            and global_step % (save_steps // 5) == 0
+                        )
+
+                    return False
+
                 if (
                     args.local_rank in [-1, 0]
                     and args.save_steps > 0
                     and global_step % args.save_steps == 0
+                    or early_save(global_step, args.save_steps)
                 ):
                     checkpoint_prefix = "checkpoint"
                     # Save model checkpoint
@@ -591,9 +601,10 @@ def train(
                     tokenizer.save_pretrained(output_dir)
 
                     torch.save(args, os.path.join(output_dir, "training_args.bin"))
-                    print("Saving model checkpoint to %s", output_dir)
+                    logger.warning("Saving model checkpoint to %s", output_dir)
 
-                    _rotate_checkpoints(args, checkpoint_prefix)
+                    # Do not limit.
+                    # _rotate_checkpoints(args, checkpoint_prefix)
 
                     torch.save(
                         optimizer.state_dict(),
@@ -602,10 +613,6 @@ def train(
                     torch.save(
                         scheduler.state_dict(),
                         os.path.join(output_dir, "scheduler.pt"),
-                    )
-                    print(
-                        "Saving optimizer and scheduler states to %s",
-                        output_dir,
                     )
 
                     if FASTTERM in args.patches:
