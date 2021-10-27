@@ -860,6 +860,7 @@ def main():
                     glob.glob(args.output_dir + "/**/" + WEIGHTS_NAME, recursive=True)
                 )
             )
+            logger.warning("Evaluating %s", checkpoints)
             logging.getLogger("transformers.modeling_utils").setLevel(
                 logging.WARN
             )  # Reduce logging

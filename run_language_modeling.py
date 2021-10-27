@@ -260,7 +260,7 @@ def _sorted_checkpoints(
 def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -> None:
     if not args.save_total_limit:
         return
-    if args.save_total_limit <= 0:
+    if argsEARLYFOCUS.save_total_limit <= 0:
         return
 
     # Check if we should delete older checkpoint(s)
