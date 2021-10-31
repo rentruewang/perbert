@@ -1,14 +1,15 @@
 import os
-from torch import optim
-from tqdm import tqdm
+
 import seaborn as sns
 import torch
 from matplotlib import pyplot as plt
 from pandas import DataFrame
 from sklearn.cluster import KMeans
 from torch.distributions import Categorical, Independent, MixtureSameFamily, Normal
-from torch.nn import Linear, functional as F
+from torch.nn import Linear
+from torch.nn import functional as F
 from torch.optim import Adam
+from tqdm import tqdm
 
 DIM = 2
 CLUSTERS = 4

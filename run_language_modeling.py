@@ -173,12 +173,6 @@ class SplitChainDataset(Dataset):
 
         self.datasets: list[TextDataset] = []
 
-        # datasets = ThreadPool(8).starmap(
-        #     text_dataset_and_index,
-        #     [(i, tokenizer, args, f, block_size) for (i, f) in enumerate(files)],
-        # )
-        # datasets = sorted(datasets)
-        # datasets = [d[1] for d in datasets]
         datasets = []
 
         if SMALLSUBSET in args.patches:

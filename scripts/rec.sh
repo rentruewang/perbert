@@ -1,10 +1,11 @@
 export MODEL=rec
 export OUTPUT=$MODEL
 
-virtualenv env-$OUTPUT -p python3
+export ENV=env-$OUTPUT
+virtualenv $ENV -p python3
 
 echo "Sourcing env-$MODEL"
-source env-$OUTPUT/bin/activate
+source $ENV/bin/activate
 
 echo $(which python)
 echo $(which pip)
@@ -21,6 +22,8 @@ python run_language_modeling.py \
       --do_train \
       --train_data_file=bert-pretraining.txt \
       --patches save10 savelog smallsubset none mlmpair
+
+rm -r $ENV
 
 # run_glue () {
 #     python run_glue.py \

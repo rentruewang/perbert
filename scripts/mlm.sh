@@ -1,10 +1,11 @@
 export MODEL=mlm
 export OUTPUT=$MODEL
 
-virtualenv env-$OUTPUT -p python3
+export ENV=env-$OUTPUT
+virtualenv $ENV -p python3
 
 echo "Sourcing env-$MODEL"
-source env-$OUTPUT/bin/activate
+source $ENV/bin/activate
 
 echo $(which python)
 echo $(which pip)
@@ -22,6 +23,7 @@ python run_language_modeling.py \
       --train_data_file=bert-pretraining.txt \
       --mlm --patches save10 savelog smallsubset none
 
+rm -r $ENV
 # run_glue () {
 #     python run_glue.py \
 #         --model_type bert-base-uncased \
