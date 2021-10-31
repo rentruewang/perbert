@@ -30,6 +30,7 @@ MASKCROSS = "maskcross"
 EMBEDDING = "embedding"
 FIRSTLAYER = "firstlayer"
 EARLYFOCUS = "earlyfocus"
+SAVELOG = "savelog"
 
 CROSS_ATTN_PROB = 0.15
 
@@ -47,6 +48,7 @@ PATCHES = {
     EMBEDDING,
     FIRSTLAYER,
     EARLYFOCUS,
+    SAVELOG,
 }
 
 

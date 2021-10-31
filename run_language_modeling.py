@@ -182,9 +182,10 @@ class SplitChainDataset(Dataset):
         datasets = []
 
         if SMALLSUBSET in args.patches:
-            size = 10
+            logger.warning("small subset on")
+            size = 15
         else:
-            size = 1e9
+            size = np.inf
 
         for f in progress.track(files):
             logger.info(f)
@@ -260,7 +261,7 @@ def _sorted_checkpoints(
 def _rotate_checkpoints(args, checkpoint_prefix="checkpoint", use_mtime=False) -> None:
     if not args.save_total_limit:
         return
-    if argsEARLYFOCUS.save_total_limit <= 0:
+    if args.save_total_limit <= 0:
         return
 
     # Check if we should delete older checkpoint(s)
@@ -459,6 +460,8 @@ def train(
     global_step = 0
     epochs_trained = 0
     steps_trained_in_current_epoch = 0
+    if SAVELOG in args.patches:
+        logger.warning("Saving log")
     # Check if continuing training from a checkpoint
     if args.model_name_or_path and os.path.exists(args.model_name_or_path):
         try:
@@ -572,20 +575,13 @@ def train(
                     )
                     logging_loss = tr_loss
 
-                def early_save(global_step, save_steps):
-                    if EARLYFOCUS in args.patches:
-                        return (
-                            global_step % save_steps < 3
-                            and global_step % (save_steps // 5) == 0
-                        )
-
-                    return False
-
                 if (
+                    SAVELOG in args.patches
+                    and global_step in (2 ** i for i in range(500))
+                ) or (
                     args.local_rank in [-1, 0]
                     and args.save_steps > 0
                     and global_step % args.save_steps == 0
-                    or early_save(global_step, args.save_steps)
                 ):
                     checkpoint_prefix = "checkpoint"
                     # Save model checkpoint
