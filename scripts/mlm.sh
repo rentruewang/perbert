@@ -21,7 +21,7 @@ python run_language_modeling.py \
       --per_gpu_train_batch_size 24 \
       --do_train \
       --train_data_file=bert-pretraining.txt \
-      --mlm --patches save10 savelog smallsubset none
+      --mlm --patches save10 savelog none
 
 rm -r $ENV
 # run_glue () {
