@@ -1,4 +1,6 @@
+black
 numpy
+plotly
 rich
 seaborn
 scikit-learn

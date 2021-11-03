@@ -1,22 +1,24 @@
 import os
 
-import seaborn as sns
+import numpy as np
 import torch
-from matplotlib import pyplot as plt
 from pandas import DataFrame
+from plotly import express as px
+from plotly import subplots
 from sklearn.cluster import KMeans
+from sklearn.decomposition import PCA
 from torch.distributions import Categorical, Independent, MixtureSameFamily, Normal
 from torch.nn import Linear
 from torch.nn import functional as F
 from torch.optim import Adam
 from tqdm import tqdm
 
-DIM = 2
+DIM = 8
 CLUSTERS = 4
 POINTS = 25000
 SCALE = 6
-DEVICE = "cuda"
-ITERS = 10000
+DEVICE = "cpu"
+ITERS = 1000
 
 # Generate clusters
 mix = Categorical(torch.ones([CLUSTERS]))
@@ -45,28 +47,33 @@ for _ in tqdm(range(ITERS)):
     optimizer.step()
 
 # Plotting
+pca = PCA()
 all_points = torch.cat([samples.cpu(), centers.cpu()], 0).cpu().numpy()
 
 labels = labels.cpu().numpy()
 predicted = model(samples).argmax(-1).cpu().numpy()
+labels = np.array(list(labels) + [CLUSTERS] * len(centers))
+predicted = np.array(list(predicted) + [CLUSTERS] * len(centers))
 
-df = DataFrame(
-    {
-        "x": all_points[:, 0],
-        "y": all_points[:, 1],
-        "labels": list(labels) + [CLUSTERS] * len(centers),
-        "predict": list(predicted) + [CLUSTERS] * len(centers),
-    }
-)
+df = DataFrame(all_points)
+df["labels"] = labels
+df["predict"] = predicted
+
 print(df)
+axises = pca.fit_transform(all_points)
+print(axises.shape)
+
+df["first"] = axises[:, 0]
+df["second"] = axises[:, 1]
 
 os.makedirs("img", exist_ok=True)
-sns.set_palette("Paired")
 
-sns.scatterplot(data=df, x="x", y="y", hue="labels")
-plt.savefig("img/kmeans.png")
-plt.clf()
 
-sns.scatterplot(data=df, x="x", y="y", hue="predict")
-plt.savefig("img/predict.png")
-plt.clf()
+fig = px.scatter_matrix(df, dimensions=range(DIM), color="labels")
+fig.show()
+
+fig = px.scatter_matrix(df, dimensions=range(DIM), color="predict")
+fig.show()
+
+
+# px.savefig(f"img/{DIM}-{CLUSTERS}.png")
