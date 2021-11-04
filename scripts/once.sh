@@ -1,5 +1,5 @@
 VENV=env
-virtualenv -p python3 $VENV
+virtualenv --system-site-packages -p python3 $VENV
 source $VENV/bin/activate
 
 echo $(which python)
@@ -39,14 +39,13 @@ run_glue () {
 }
 
 run_one_model () {
-        export MODEL=$1/checkpoint-$2
-        export OUTPUT=$1-$2
-        run_glue CoLA
-        run_glue MNLI
-        run_glue QNLI
-        run_glue QQP
-        run_glue SST-2
-        run_glue STS-B
+    export MODEL=$1/checkpoint-$2
+    export OUTPUT=$1-$2
+    run_glue MNLI
+    run_glue QNLI
+    run_glue QQP
+    run_glue SST-2
+    run_glue STS-B
 
     echo DONE
 }
@@ -55,9 +54,9 @@ export BATCH=16
 export PATCHES='none'
 
 run_three () {
-        run_one_model rec $1
-        run_one_model mix $1
-        run_one_model mlm $1
+    run_one_model rec $1
+    run_one_model mix $1
+    run_one_model mlm $1
 }
 
 run_three 1
@@ -78,3 +77,4 @@ run_three 16384
 run_three 32768
 run_three 65536
 run_three 131072
+run_three 262144
