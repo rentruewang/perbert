@@ -13,9 +13,9 @@ from torch.nn import functional as F
 from torch.optim import Adam
 from tqdm import tqdm
 
-DIM = 8
+DIM = 2
 CLUSTERS = 4
-POINTS = 25000
+POINTS = 2500
 SCALE = 6
 DEVICE = "cpu"
 ITERS = 1000

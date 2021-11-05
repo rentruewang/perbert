@@ -872,17 +872,17 @@ def main():
                 logging.WARN
             )  # Reduce logging
         logger.info("Evaluate the following checkpoints: %s", checkpoints)
-        for checkpoint in checkpoints:
-            global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
-            prefix = (
-                checkpoint.split("/")[-1] if checkpoint.find("checkpoint") != -1 else ""
-            )
+        # for checkpoint in checkpoints:
+        #     global_step = checkpoint.split("-")[-1] if len(checkpoints) > 1 else ""
+        #     prefix = (
+        #         checkpoint.split("/")[-1] if checkpoint.find("checkpoint") != -1 else ""
+        #     )
 
-            model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
-            # XXX: custom model
-            model = PatchedSequenceClassification(
-                args.model_type, model, patches=args.patches
-            )
+        #     model = AutoModelForSequenceClassification.from_pretrained(checkpoint)
+        #     XXX: custom model
+        #     model = PatchedSequenceClassification(
+        #         args.model_type, model, patches=args.patches
+        #     )
 
         model.to(args.device)
         prefix = ""
