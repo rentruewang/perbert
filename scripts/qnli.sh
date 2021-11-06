@@ -35,12 +35,7 @@ run_one_model () {
     export MODEL=$1/checkpoint-$2
     export OUTPUT=$1-$2
 
-    run_glue MNLI
     run_glue QNLI
-    run_glue QQP
-    run_glue RTE
-    run_glue SST-2
-    run_glue STS-B
 
     echo DONE
 }
