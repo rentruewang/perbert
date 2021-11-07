@@ -4,13 +4,12 @@ run_glue () {
     if [ ! -d $VENV ]
     then
         virtualenv --system-site-packages -p python3 $VENV
-        source $VENV/bin/activate
-
-        echo $(which python)
-        echo $(which pip)
-
         pip install -r requirements.txt
     fi
+
+    source $VENV/bin/activate
+    echo $(which python)
+    echo $(which pip)
 
     python run_glue.py \
         --model_type bert-base-uncased \
@@ -29,6 +28,8 @@ run_glue () {
         --save_steps 1000000000 \
         --eval_all_checkpoints \
         --patches $PATCHES 2>&1
+    
+    deactivate
 }
 
 run_one_model () {
