@@ -1,3 +1,5 @@
+export CKPT_TYPE=$1
+
 run_glue () {
     VENV=env-$1
 
@@ -49,28 +51,27 @@ run_one_model () {
 export BATCH=16
 export PATCHES='none'
 
-run_three () {
-    run_one_model rec $1
-    run_one_model mix $1
-    run_one_model mlm $1
+run_checkpoint () {
+    run_one_model CKPT_TYPE $1
 }
 
-run_three 1
-run_three 2
-run_three 4
-run_three 8
-run_three 16
-run_three 32
-run_three 64
-run_three 128
-run_three 256
-run_three 512
-run_three 1024
-run_three 2048
-run_three 4096
-run_three 8192
-run_three 16384
-run_three 32768
-run_three 65536
-run_three 131072
-run_three 262144
+run_checkpoint 0
+run_checkpoint 1
+run_checkpoint 2
+run_checkpoint 4
+run_checkpoint 8
+run_checkpoint 16
+run_checkpoint 32
+run_checkpoint 64
+run_checkpoint 128
+run_checkpoint 256
+run_checkpoint 512
+run_checkpoint 1024
+run_checkpoint 2048
+run_checkpoint 4096
+run_checkpoint 8192
+run_checkpoint 16384
+run_checkpoint 32768
+run_checkpoint 65536
+run_checkpoint 131072
+run_checkpoint 262144

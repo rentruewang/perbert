@@ -428,7 +428,10 @@ def evaluate(args, model, tokenizer, prefix=""):
         result = compute_metrics(eval_task, preds, out_label_ids)
         results.update(result)
 
-        output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
+        os.makedirs("results", exist_ok=True)
+        output_eval_file = os.path.join(
+            "results", eval_output_dir, prefix, "eval_results.txt"
+        )
         with open(output_eval_file, "w") as writer:
             logger.info("***** Eval results {} *****".format(prefix))
             for key in sorted(result.keys()):

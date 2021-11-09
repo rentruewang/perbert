@@ -588,7 +588,7 @@ def train(
                         model.module if hasattr(model, "module") else model
                     )  # Take care of distributed/parallel training
                     model_to_save.save_pretrained(output_dir)
-                    tokenizer.save_pretrained(output_dir)
+                    # tokenizer.save_pretrained(output_dir)
 
                     torch.save(args, os.path.join(output_dir, "training_args.bin"))
                     logger.warning("Saving model checkpoint to %s", output_dir)
@@ -596,17 +596,17 @@ def train(
                     # Do not limit.
                     # _rotate_checkpoints(args, checkpoint_prefix)
 
-                    torch.save(
-                        optimizer.state_dict(),
-                        os.path.join(output_dir, "optimizer.pt"),
-                    )
-                    torch.save(
-                        scheduler.state_dict(),
-                        os.path.join(output_dir, "scheduler.pt"),
-                    )
+                    # torch.save(
+                    #     optimizer.state_dict(),
+                    #     os.path.join(output_dir, "optimizer.pt"),
+                    # )
+                    # torch.save(
+                    #     scheduler.state_dict(),
+                    #     os.path.join(output_dir, "scheduler.pt"),
+                    # )
 
-                    if FASTTERM in args.patches:
-                        return global_step, tr_loss / global_step
+                    # if FASTTERM in args.patches:
+                    #     return global_step, tr_loss / global_step
 
             if args.max_steps > 0 and global_step > args.max_steps:
                 epoch_iterator.close()
@@ -1078,6 +1078,20 @@ def main():
 
         if args.local_rank == 0:
             torch.distributed.barrier()
+
+        # XXX
+        checkpoint_prefix = "checkpoint"
+        # Save model checkpoint
+        output_dir = os.path.join(args.output_dir, f"{checkpoint_prefix}-0")
+        os.makedirs(output_dir, exist_ok=True)
+        model_to_save = (
+            model.module if hasattr(model, "module") else model
+        )  # Take care of distributed/parallel training
+        model_to_save.save_pretrained(output_dir)
+        # tokenizer.save_pretrained(output_dir)
+
+        torch.save(args, os.path.join(output_dir, "training_args.bin"))
+        logger.warning("Saving model checkpoint to %s", output_dir)
 
         global_step, tr_loss = train(args, train_dataset, model, tokenizer)
         print(" global_step = %s, average loss = %s", global_step, tr_loss)
