@@ -5,7 +5,8 @@ export PATCHES=${@:2}
 echo "Model to save: $MODEL"
 echo "Patches used: $PATCHES"
 
-virtualenv --system-site-packages env-$OUTPUT -p python3
+export VENV=env-$OUTPUT
+virtualenv --system-site-packages $VENV -p python3
 
 echo "Sourcing env-$MODEL"
 source env-$OUTPUT/bin/activate
@@ -26,3 +27,7 @@ python run_language_modeling.py \
       --fp16 \
       --train_data_file=bert-pretraining.txt \
       --patches $PATCHES
+
+tar cvf $MODEL.tar.gz $MODEL
+
+rm -r $VENV

@@ -29,6 +29,7 @@ run_glue () {
         --output_dir $OUTPUT-$1 \
         --save_steps 1000000000 \
         --eval_all_checkpoints \
+        --fp16 \
         --patches $PATCHES 2>&1
     
     deactivate

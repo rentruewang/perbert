@@ -28,6 +28,7 @@ import pickle
 import random
 import re
 import shutil
+import sys
 from typing import Dict, List, Tuple
 
 import numpy as np
@@ -710,6 +711,7 @@ def evaluate(
 
 
 def main():
+    print(sys.argv)
     parser = argparse.ArgumentParser()
 
     # Required parameters
