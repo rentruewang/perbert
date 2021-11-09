@@ -22,9 +22,8 @@ python run_language_modeling.py \
       --model_name_or_path=bert-base-uncased \
       --tokenizer_name=bert-base-uncased \
       --save_steps 100000000 \
-      --per_gpu_train_batch_size 24 \
+      --per_gpu_train_batch_size 16 \
       --do_train \
-      --fp16 \
       --train_data_file=bert-pretraining.txt \
       --patches $PATCHES
 

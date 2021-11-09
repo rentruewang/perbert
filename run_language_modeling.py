@@ -711,7 +711,7 @@ def evaluate(
 
 
 def main():
-    print(sys.argv)
+    logger.warning(sys.argv)
     parser = argparse.ArgumentParser()
 
     # Required parameters
