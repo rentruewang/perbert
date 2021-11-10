@@ -33,7 +33,7 @@ from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
-from rich import print, progress
+from rich import print
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -182,7 +182,7 @@ class SplitChainDataset(Dataset):
         else:
             size = np.inf
 
-        for f in progress.track(files):
+        for f in tqdm(files):
             logger.info(f)
             if len(datasets) > size:
                 break

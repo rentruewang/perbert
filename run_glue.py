@@ -17,7 +17,6 @@ from run_language_modeling import *
 
 """ Finetuning the library models for sequence classification on GLUE (Bert, XLM, XLNet, RoBERTa, Albert, XLM-RoBERTa)."""
 import argparse
-import glob
 import json
 import logging
 import os

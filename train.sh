@@ -1,7 +1,9 @@
-export MODEL=$1
+export NODES=$1
+export MODEL=$2
 export OUTPUT=$MODEL
-export PATCHES=${@:2}
+export PATCHES=${@:3}
 
+echo "Nodes used: $NODES"
 echo "Model to save: $MODEL"
 echo "Patches used: $PATCHES"
 
@@ -16,7 +18,9 @@ echo $(which pip)
 
 pip install -r requirements.txt
 
-python run_language_modeling.py \
+python -m torch.distributed.launch \
+      --nproc_per_node=$NODES \
+      run_language_modeling.py \
       --output_dir=$MODEL \
       --model_type=bert-base-uncased \
       --model_name_or_path=bert-base-uncased \
