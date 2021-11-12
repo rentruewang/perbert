@@ -40,7 +40,7 @@ from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampl
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import *
-
+import h5py
 import richlogger
 from perbert import *
 
@@ -210,18 +210,51 @@ class SplitChainDataset(Dataset):
         raise ValueError("unreachable")
 
 
-def load_and_cache_examples(args, tokenizer, evaluate=False):
-    file_path = args.eval_data_file if evaluate else args.train_data_file
-    if args.line_by_line:
-        # return LineByLineTextDataset(
-        #     tokenizer, args, file_path=file_path, block_size=args.block_size
-        # )
-        logger.error("not good")
+class H5Dataset(Dataset):
+    def __init__(self, name) -> None:
+        super().__init__()
+
+        dataset = h5py.File(name, "r", swmr=True)
+
+        self.dataset = []
+        self.accumulate = []
+
+        for i in trange(100):
+            t = torch.from_numpy(np.array(dataset[f"{i:03d}"]))
+            self.dataset.append(t)
+            self.accumulate.append(len(self))
+
+    def __len__(self):
+        return sum(len(d) for d in self.dataset)
+
+    def __getitem__(self, i):
+        length = len(self)
+        if i < -length or i >= length:
+            raise IndexError
+        i %= length
+
+        for dset in self.dataset:
+            if i >= len(dset):
+                i -= len(dset)
+            else:
+                return dset[i]
+
         raise ValueError
-    else:
-        return SplitChainDataset(
-            tokenizer, args, file_path=file_path, block_size=args.block_size
-        )
+
+
+def load_and_cache_examples(args, tokenizer, evaluate=False):
+    # file_path = args.eval_data_file if evaluate else args.train_data_file
+    # if args.line_by_line:
+    #     # return LineByLineTextDataset(
+    #     #     tokenizer, args, file_path=file_path, block_size=args.block_size
+    #     # )
+    #     logger.error("not good")
+    #     raise ValueError
+    # else:
+    #     return SplitChainDataset(
+    #         tokenizer, args, file_path=file_path, block_size=args.block_size
+    #     )
+    return H5Dataset("./dataset.hdf5")
 
 
 def set_seed(args):
@@ -491,19 +524,19 @@ def train(
             print("  Starting fine-tuning.")
 
     # XXX
-    checkpoint_prefix = "checkpoint"
-    # Save model checkpoint
-    output_dir = os.path.join(args.output_dir, f"{checkpoint_prefix}-{global_step}")
-    os.makedirs(output_dir, exist_ok=True)
-    model_to_save = (
-        model.module if hasattr(model, "module") else model
-    )  # Take care of distributed/parallel training
-    model_to_save.save_pretrained(output_dir)
-    tokenizer.save_pretrained(output_dir)
+    if args.local_rank in [-1, 0]:
+        checkpoint_prefix = "checkpoint"
+        # Save model checkpoint
+        output_dir = os.path.join(args.output_dir, f"{checkpoint_prefix}-{global_step}")
+        os.makedirs(output_dir, exist_ok=True)
+        model_to_save = (
+            model.module if hasattr(model, "module") else model
+        )  # Take care of distributed/parallel training
+        model_to_save.save_pretrained(output_dir)
+        tokenizer.save_pretrained(output_dir)
 
-    torch.save(args, os.path.join(output_dir, "training_args.bin"))
-    logger.warning("Saving model checkpoint to %s", output_dir)
-
+        torch.save(args, os.path.join(output_dir, "training_args.bin"))
+        logger.warning("Saving model checkpoint to %s", output_dir)
 
     tr_loss, logging_loss = 0.0, 0.0
 
@@ -593,13 +626,12 @@ def train(
                     )
                     logging_loss = tr_loss
 
-                if (
-                    SAVELOG in args.patches
-                    and global_step in (2 ** i for i in range(500))
-                ) or (
-                    args.local_rank in [-1, 0]
-                    and args.save_steps > 0
-                    and global_step % args.save_steps == 0
+                if args.local_rank in [-1, 0] and (
+                    (
+                        SAVELOG in args.patches
+                        and global_step in (2 ** i for i in range(500))
+                    )
+                    or (args.save_steps > 0 and global_step % args.save_steps == 0)
                 ):
                     checkpoint_prefix = "checkpoint"
                     # Save model checkpoint
@@ -1088,8 +1120,8 @@ def main():
     model = PatchedForMaskedLM(args.model_type, model, args.patches)
 
     def destroy_(module: Module) -> None:
-        logger.warning("Destroying %s", module)
         if isinstance(module, Linear):
+            logger.warning("Destroying %s", module)
             gain = init.calculate_gain("linear")
             init.xavier_normal_(module.weight, gain)
             init.normal_(module.bias)
