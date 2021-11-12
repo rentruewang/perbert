@@ -18,7 +18,6 @@ Fine-tuning the library models for language modeling on a text file (GPT, GPT-2,
 GPT and GPT-2 are fine-tuned using a causal language modeling (CLM) loss while BERT and RoBERTa are fine-tuned
 using a masked language modeling (MLM) loss.
 """
-
 import argparse
 import gc
 import glob
@@ -29,11 +28,13 @@ import random
 import re
 import shutil
 import sys
+from datetime import datetime
 from typing import Dict, List, Tuple
 
 import numpy as np
 import torch
 from rich import print
+from torch.nn import Linear, Module, init
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -74,14 +75,17 @@ class TextDataset(Dataset):
         block_size = 510
 
         directory, filename = os.path.split(file_path)
-        cached_features_file = os.path.join(
-            directory,
-            "bert-base-uncased" + "_cached_lm_" + str(block_size) + "_" + filename,
+        np_cached_features_file = os.path.join(
+            directory, "numpy-cache-" + filename + ".npy"
         )
-        if os.path.exists(cached_features_file) and not args.overwrite_cache:
-            logger.info("Loading features from cached file %s", cached_features_file)
-            with open(cached_features_file, "rb") as handle:
-                examples = pickle.load(handle)
+        # cached_features_file = os.path.join(
+        #     directory,
+        #     "bert-base-uncased" + "_cached_lm_" + str(block_size) + "_" + filename,
+        # )
+        # if os.path.exists(cached_features_file) and not args.overwrite_cache:
+        if os.path.exists(np_cached_features_file) and not args.overwrite_cache:
+            logger.info("Loading features from cached file %s", np_cached_features_file)
+            examples = np.load(np_cached_features_file)
         else:
             # raise ValueError("not possible")
             logger.info(
@@ -104,15 +108,15 @@ class TextDataset(Dataset):
                         tokenized_text[i : i + block_size]
                     )
                 )
+            print("Saving features into cached file %s", cached_features_file)
+            examples = np.array(examples, dtype="l")
+            examples = np.save(np_cached_features_file, examples)
             # Note that we are loosing the last truncated example here for the sake of simplicity (no padding)
             # If your dataset is small, first you should loook for a bigger one :-) and second you
             # can change this behavior by adding (model specific) padding.
-            print("Saving features into cached file %s", cached_features_file)
-            with open(cached_features_file, "wb") as handle:
-                pickle.dump(examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
+            # with open(cached_features_file, "wb") as handle:
+            #     pickle.dump(examples, handle, protocol=pickle.HIGHEST_PROTOCOL)
         self.examples = np.array(examples).astype("int32")
-        del examples
-        gc.collect()
 
     def __len__(self):
         return len(self.examples)
@@ -168,17 +172,16 @@ class SplitChainDataset(Dataset):
     ):
         path, fname = os.path.split(file_path)
         datadir = os.path.join(path, "dataset-" + fname.split(".")[0])
-        files = sorted(glob.glob(f"{datadir}/*"))
-        files = [f for f in files if "_cached_lm_" not in f]
-        print("loading " + str(files))
+        files = sorted(glob.glob(f"{datadir}/*.txt"))
 
-        self.datasets: list[TextDataset] = []
+        random.shuffle(files)
+        print("split chain loading", str(files))
 
         datasets = []
 
         if SMALLSUBSET in args.patches:
             logger.warning("small subset on")
-            size = 15
+            size = 10
         else:
             size = np.inf
 
@@ -188,7 +191,7 @@ class SplitChainDataset(Dataset):
                 break
             datasets.append(TextDataset(tokenizer, args, f, block_size))
 
-        self.datasets = []
+        self.datasets: list[TextDataset] = []
         for dset in datasets:
             self.datasets.append(dset)
 
@@ -327,7 +330,12 @@ def train(
 ) -> Tuple[int, float]:
     """Train the model"""
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter(os.path.join("runs", args.output_dir))
+        tb_writer = SummaryWriter(
+            os.path.join(
+                "runs",
+                args.output_dir + " " + datetime.now().strftime("%Y-%m-%d-%H-%M-%s"),
+            )
+        )
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     print(model)
@@ -482,6 +490,21 @@ def train(
         except ValueError:
             print("  Starting fine-tuning.")
 
+    # XXX
+    checkpoint_prefix = "checkpoint"
+    # Save model checkpoint
+    output_dir = os.path.join(args.output_dir, f"{checkpoint_prefix}-{global_step}")
+    os.makedirs(output_dir, exist_ok=True)
+    model_to_save = (
+        model.module if hasattr(model, "module") else model
+    )  # Take care of distributed/parallel training
+    model_to_save.save_pretrained(output_dir)
+    tokenizer.save_pretrained(output_dir)
+
+    torch.save(args, os.path.join(output_dir, "training_args.bin"))
+    logger.warning("Saving model checkpoint to %s", output_dir)
+
+
     tr_loss, logging_loss = 0.0, 0.0
 
     model.zero_grad()
@@ -589,7 +612,7 @@ def train(
                         model.module if hasattr(model, "module") else model
                     )  # Take care of distributed/parallel training
                     model_to_save.save_pretrained(output_dir)
-                    # tokenizer.save_pretrained(output_dir)
+                    tokenizer.save_pretrained(output_dir)
 
                     torch.save(args, os.path.join(output_dir, "training_args.bin"))
                     logger.warning("Saving model checkpoint to %s", output_dir)
@@ -597,14 +620,14 @@ def train(
                     # Do not limit.
                     # _rotate_checkpoints(args, checkpoint_prefix)
 
-                    # torch.save(
-                    #     optimizer.state_dict(),
-                    #     os.path.join(output_dir, "optimizer.pt"),
-                    # )
-                    # torch.save(
-                    #     scheduler.state_dict(),
-                    #     os.path.join(output_dir, "scheduler.pt"),
-                    # )
+                    torch.save(
+                        optimizer.state_dict(),
+                        os.path.join(output_dir, "optimizer.pt"),
+                    )
+                    torch.save(
+                        scheduler.state_dict(),
+                        os.path.join(output_dir, "scheduler.pt"),
+                    )
 
                     # if FASTTERM in args.patches:
                     #     return global_step, tr_loss / global_step
@@ -1064,6 +1087,14 @@ def main():
     # XXX: custom model
     model = PatchedForMaskedLM(args.model_type, model, args.patches)
 
+    def destroy_(module: Module) -> None:
+        logger.warning("Destroying %s", module)
+        if isinstance(module, Linear):
+            gain = init.calculate_gain("linear")
+            init.xavier_normal_(module.weight, gain)
+            init.normal_(module.bias)
+
+    model.apply(destroy_)
     model.to(args.device)
 
     if args.local_rank == 0:
@@ -1080,20 +1111,6 @@ def main():
 
         if args.local_rank == 0:
             torch.distributed.barrier()
-
-        # XXX
-        checkpoint_prefix = "checkpoint"
-        # Save model checkpoint
-        output_dir = os.path.join(args.output_dir, f"{checkpoint_prefix}-0")
-        os.makedirs(output_dir, exist_ok=True)
-        model_to_save = (
-            model.module if hasattr(model, "module") else model
-        )  # Take care of distributed/parallel training
-        model_to_save.save_pretrained(output_dir)
-        # tokenizer.save_pretrained(output_dir)
-
-        torch.save(args, os.path.join(output_dir, "training_args.bin"))
-        logger.warning("Saving model checkpoint to %s", output_dir)
 
         global_step, tr_loss = train(args, train_dataset, model, tokenizer)
         print(" global_step = %s, average loss = %s", global_step, tr_loss)

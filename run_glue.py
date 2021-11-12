@@ -13,14 +13,13 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-from run_language_modeling import *
-
 """ Finetuning the library models for sequence classification on GLUE (Bert, XLM, XLNet, RoBERTa, Albert, XLM-RoBERTa)."""
 import argparse
 import json
 import logging
 import os
 import random
+from datetime import datetime
 
 import numpy as np
 import torch
@@ -44,6 +43,7 @@ from transformers import glue_processors as processors
 
 import richlogger
 from perbert import *
+from run_language_modeling import *
 
 try:
     from torch.utils.tensorboard import SummaryWriter
@@ -77,7 +77,12 @@ def train(args, train_dataset, model, tokenizer):
     logger.warning("Training")
 
     if args.local_rank in [-1, 0]:
-        tb_writer = SummaryWriter(os.path.join("runs", args.output_dir))
+        tb_writer = SummaryWriter(
+            os.path.join(
+                "runs",
+                args.output_dir + " " + datetime.now().strftime("%Y-%m-%d-%H-%M-%s"),
+            )
+        )
 
     args.train_batch_size = args.per_gpu_train_batch_size * max(1, args.n_gpu)
     train_sampler = (

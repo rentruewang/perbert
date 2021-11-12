@@ -20,10 +20,10 @@ python \
       run_language_modeling.py \
       --output_dir=$MODEL \
       --model_type=bert-base-uncased \
-      --model_name_or_path=bert-base-uncased \
+      --model_name_or_path=prajjwal1/bert-tiny \
       --tokenizer_name=bert-base-uncased \
       --save_steps 100000000 \
-      --per_gpu_train_batch_size 16 \
+      --per_gpu_train_batch_size 64 \
       --do_train \
       --train_data_file=bert-pretraining.txt \
       --patches $PATCHES

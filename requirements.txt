@@ -1,11 +1,3 @@
-apex
-black
-numpy
+alive_progress
 rich
-seaborn
-scikit-learn
-torch
 transformers==2.8.0
-tensorboardX
-tqdm
-virtualenv
