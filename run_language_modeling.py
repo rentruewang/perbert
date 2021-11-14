@@ -18,12 +18,11 @@ Fine-tuning the library models for language modeling on a text file (GPT, GPT-2,
 GPT and GPT-2 are fine-tuned using a causal language modeling (CLM) loss while BERT and RoBERTa are fine-tuned
 using a masked language modeling (MLM) loss.
 """
+
 import argparse
-import gc
 import glob
 import logging
 import os
-import pickle
 import random
 import re
 import shutil
@@ -31,6 +30,7 @@ import sys
 from datetime import datetime
 from typing import Dict, List, Tuple
 
+import h5py
 import numpy as np
 import torch
 from rich import print
@@ -40,7 +40,7 @@ from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampl
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import *
-import h5py
+
 import richlogger
 from perbert import *
 

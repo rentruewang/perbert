@@ -432,10 +432,7 @@ def evaluate(args, model, tokenizer, prefix=""):
         result = compute_metrics(eval_task, preds, out_label_ids)
         results.update(result)
 
-        os.makedirs("results", exist_ok=True)
-        output_eval_file = os.path.join(
-            "results", eval_output_dir, prefix, "eval_results.txt"
-        )
+        output_eval_file = os.path.join(eval_output_dir, prefix, "eval_results.txt")
         with open(output_eval_file, "w") as writer:
             logger.info("***** Eval results {} *****".format(prefix))
             for key in sorted(result.keys()):
@@ -727,6 +724,8 @@ def main():
     for patch in args.patches:
         assert patch in PATCHES, patch
 
+    args.output_dir = os.path.join("results", args.output_dir)
+
     if (
         os.path.exists(args.output_dir)
         and os.listdir(args.output_dir)
@@ -827,8 +826,10 @@ def main():
     # Saving best-practices: if you use defaults names for the model, you can reload it using from_pretrained()
     # XXX: no reload model
     # XXX: don't save
+
     if not os.path.exists(args.output_dir) and args.local_rank in [-1, 0]:
         os.makedirs(args.output_dir)
+
     if (
         False
         and args.do_train

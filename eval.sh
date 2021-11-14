@@ -48,11 +48,11 @@ run_one_model () {
     echo DONE
 }
 
-export BATCH=16
+export BATCH=32
 export PATCHES='none'
 
 run_checkpoint () {
-    run_one_model CKPT_TYPE $1
+    run_one_model $CKPT_TYPE $1
 }
 
 run_checkpoint 0
@@ -74,4 +74,3 @@ run_checkpoint 16384
 run_checkpoint 32768
 run_checkpoint 65536
 run_checkpoint 131072
-run_checkpoint 262144
