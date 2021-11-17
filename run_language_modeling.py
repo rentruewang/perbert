@@ -34,7 +34,7 @@ import h5py
 import numpy as np
 import torch
 from rich import print
-from torch.nn import Linear, Module, init
+from torch.nn import Linear, Module, init, Embedding
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -1120,10 +1120,11 @@ def main():
     model = PatchedForMaskedLM(args.model_type, model, args.patches)
 
     def destroy_(module: Module) -> None:
-        if isinstance(module, Linear):
+        if isinstance(module, (Linear, Embedding)):
             logger.warning("Destroying %s", module)
             gain = init.calculate_gain("linear")
             init.xavier_normal_(module.weight, gain)
+        if isinstance(module, Linear):
             init.normal_(module.bias)
 
     model.apply(destroy_)
