@@ -455,16 +455,16 @@ def train(
             torch.load(os.path.join(args.model_name_or_path, "scheduler.pt"))
         )
 
-    if args.fp16:
-        try:
-            from apex import amp
-        except ImportError:
-            raise ImportError(
-                "Please install apex from https://www.github.com/nvidia/apex to use fp16 training."
-            )
-        model, optimizer = amp.initialize(
-            model, optimizer, opt_level=args.fp16_opt_level
-        )
+    # if args.fp16:
+    #     try:
+    #         from apex import amp
+    #     except ImportError:
+    #         raise ImportError(
+    #             "Please install apex from https://www.github.com/nvidia/apex to use fp16 training."
+    #         )
+    #     model, optimizer = amp.initialize(
+    #         model, optimizer, opt_level=args.fp16_opt_level
+    #     )
 
     # multi-gpu training (should be after apex fp16 initialization)
     if args.n_gpu > 1:
@@ -583,22 +583,22 @@ def train(
             if args.gradient_accumulation_steps > 1:
                 loss = loss / args.gradient_accumulation_steps
 
-            if args.fp16:
-                with amp.scale_loss(loss, optimizer) as scaled_loss:
-                    scaled_loss.backward()
-            else:
-                loss.backward()
+            # if args.fp16:
+            #     with amp.scale_loss(loss, optimizer) as scaled_loss:
+            #         scaled_loss.backward()
+            # else:
+            loss.backward()
 
             tr_loss += loss.item()
             if (step + 1) % args.gradient_accumulation_steps == 0:
-                if args.fp16:
-                    torch.nn.utils.clip_grad_norm_(
-                        amp.master_params(optimizer), args.max_grad_norm
-                    )
-                else:
-                    torch.nn.utils.clip_grad_norm_(
-                        model.parameters(), args.max_grad_norm
-                    )
+                # if args.fp16:
+                #     torch.nn.utils.clip_grad_norm_(
+                #         amp.master_params(optimizer), args.max_grad_norm
+                #     )
+                # else:
+                torch.nn.utils.clip_grad_norm_(
+                    model.parameters(), args.max_grad_norm
+                )
                 optimizer.step()
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
@@ -1120,12 +1120,16 @@ def main():
     model = PatchedForMaskedLM(args.model_type, model, args.patches)
 
     def destroy_(module: Module) -> None:
-        if isinstance(module, (Linear, Embedding)):
-            logger.warning("Destroying %s", module)
+        if not isinstance(module, (Linear, Embedding)):
+            return
+        logger.warning("Destroying %s", module)
+
+        if isinstance(module, Linear):
             gain = init.calculate_gain("linear")
             init.xavier_normal_(module.weight, gain)
-        if isinstance(module, Linear):
             init.normal_(module.bias)
+        if isinstance(module, Embedding):
+            init.uniform_(module.weight)
 
     model.apply(destroy_)
     model.to(args.device)
@@ -1145,7 +1149,13 @@ def main():
         if args.local_rank == 0:
             torch.distributed.barrier()
 
-        global_step, tr_loss = train(args, train_dataset, model, tokenizer)
+        fn = lambda: train(args, train_dataset, model, tokenizer)
+        if args.fp16:
+            with torch.cuda.amp.autocast():
+                logger.warning("Auto casting. Device: %s", args.device)
+                global_step, tr_loss = fn()
+        else:
+            global_step, tr_loss = fn()
         print(" global_step = %s, average loss = %s", global_step, tr_loss)
 
     # Saving best-practices: if you use save_pretrained for the model and tokenizer, you can reload them using from_pretrained()
