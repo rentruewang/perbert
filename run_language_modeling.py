@@ -53,6 +53,7 @@ except ImportError:
 logger = logging.getLogger(__name__)
 richlogger.install()
 
+scaler = torch.cuda.amp.GradScaler()
 
 MODEL_CONFIG_CLASSES = list(MODEL_WITH_LM_HEAD_MAPPING.keys())
 MODEL_TYPES = tuple(conf.model_type for conf in MODEL_CONFIG_CLASSES)
@@ -572,7 +573,11 @@ def train(
             inputs = inputs.to(args.device)
             labels = labels.to(args.device)
             model.train()
-            outputs = model(inputs, masked_lm_labels=labels)
+            if args.fp16:
+                with torch.cuda.amp.autocast():
+                    outputs = model(inputs, masked_lm_labels=labels)
+            else:
+                outputs = model(inputs, masked_lm_labels=labels)
 
             loss = outputs[
                 0
@@ -587,7 +592,10 @@ def train(
             #     with amp.scale_loss(loss, optimizer) as scaled_loss:
             #         scaled_loss.backward()
             # else:
-            loss.backward()
+            if args.fp16:
+                scaler.scale(loss).backward()
+            else:
+                loss.backward()
 
             tr_loss += loss.item()
             if (step + 1) % args.gradient_accumulation_steps == 0:
@@ -596,10 +604,14 @@ def train(
                 #         amp.master_params(optimizer), args.max_grad_norm
                 #     )
                 # else:
-                torch.nn.utils.clip_grad_norm_(
-                    model.parameters(), args.max_grad_norm
-                )
-                optimizer.step()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
+                    
+                if args.fp16:
+                    scaler.step(optimizer)
+                    scaler.update()
+                else:
+                    optimizer.step()
+
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
@@ -1149,13 +1161,7 @@ def main():
         if args.local_rank == 0:
             torch.distributed.barrier()
 
-        fn = lambda: train(args, train_dataset, model, tokenizer)
-        if args.fp16:
-            with torch.cuda.amp.autocast():
-                logger.warning("Auto casting. Device: %s", args.device)
-                global_step, tr_loss = fn()
-        else:
-            global_step, tr_loss = fn()
+        global_step, tr_loss = train(args, train_dataset, model, tokenizer)
         print(" global_step = %s, average loss = %s", global_step, tr_loss)
 
     # Saving best-practices: if you use save_pretrained for the model and tokenizer, you can reload them using from_pretrained()
