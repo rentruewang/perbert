@@ -18,6 +18,7 @@ Fine-tuning the library models for language modeling on a text file (GPT, GPT-2,
 GPT and GPT-2 are fine-tuned using a causal language modeling (CLM) loss while BERT and RoBERTa are fine-tuned
 using a masked language modeling (MLM) loss.
 """
+from __future__ import annotations
 
 import argparse
 import glob
@@ -28,13 +29,13 @@ import re
 import shutil
 import sys
 from datetime import datetime
-from typing import Dict, List, Tuple
+from typing import Callable, Dict, List, Sequence, Tuple
 
 import h5py
 import numpy as np
 import torch
 from rich import print
-from torch.nn import Linear, Module, init, Embedding
+from torch.nn import Embedding, Linear, Module, init
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
@@ -605,7 +606,7 @@ def train(
                 #     )
                 # else:
                 torch.nn.utils.clip_grad_norm_(model.parameters(), args.max_grad_norm)
-                    
+
                 if args.fp16:
                     scaler.step(optimizer)
                     scaler.update()
@@ -1144,6 +1145,46 @@ def main():
             init.uniform_(module.weight)
 
     model.apply(destroy_)
+
+    def any_grad_test(
+        grad_t: Tensor | Tuple[Tensor, ...], func: Callable[[Tensor], bool]
+    ) -> bool:
+        if isinstance(grad_t, tuple):
+            return any(any_grad_test(g, func) for g in grad_t)
+        return func(grad_t)
+
+    def terminate_on_nan(self, grad_input, grad_output) -> None:
+        _ = grad_output
+        hasnan = any_grad_test(grad_input, lambda t: t.isnan().any())
+
+        if hasnan:
+            logger.fatal("Sorry. NaN.")
+            logger.fatal("Inside %s", self)
+
+            if hasnan:
+                logger.fatal("In gradient output.")
+
+            raise SystemExit(13)
+
+    def terminate_on_inf(self, grad_input, grad_output) -> None:
+        _ = grad_output
+        hasinf = any_grad_test(grad_input, lambda t: t.isinf().any())
+
+        if hasinf:
+            logger.fatal("Sorry. Inf.")
+            logger.fatal("Inside %s", self)
+
+            if hasinf:
+                logger.fatal("In gradient output.")
+
+            raise SystemExit(13)
+
+    def register_hooks(module: Module) -> None:
+        logger.warning("Registering hook for %s", module)
+        module.register_backward_hook(terminate_on_inf)
+        module.register_backward_hook(terminate_on_nan)
+
+    model.apply(register_hooks)
     model.to(args.device)
 
     if args.local_rank == 0:
