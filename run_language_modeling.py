@@ -41,7 +41,7 @@ from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampl
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import *
-
+from torch import profiler
 import richlogger
 from perbert import *
 
@@ -53,7 +53,19 @@ except ImportError:
 
 logger = logging.getLogger(__name__)
 richlogger.install()
-
+torch_profiler = profiler.profile(
+    activities=[
+        profiler.ProfilerActivity.CPU,
+        profiler.ProfilerActivity.CUDA,
+    ],
+    schedule=profiler.schedule(wait=15, warmup=5, active=5),
+    on_trace_ready=profiler.tensorboard_trace_handler(dir_name=TB_DIR),
+    record_shapes=True,
+    profile_memory=True,
+    with_stack=True,
+    with_flops=True,
+    with_modules=True,
+)
 scaler = torch.cuda.amp.GradScaler()
 
 MODEL_CONFIG_CLASSES = list(MODEL_WITH_LM_HEAD_MAPPING.keys())
@@ -616,6 +628,11 @@ def train(
                 scheduler.step()  # Update learning rate schedule
                 model.zero_grad()
                 global_step += 1
+
+                torch_profiler.step()
+                if global_step % 200 == 0:
+                    logger.fatal("bye bye")
+                    raise SystemExit
 
                 if (
                     args.local_rank in [-1, 0]
