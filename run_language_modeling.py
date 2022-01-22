@@ -59,7 +59,7 @@ torch_profiler = profiler.profile(
         profiler.ProfilerActivity.CUDA,
     ],
     schedule=profiler.schedule(wait=15, warmup=5, active=5),
-    on_trace_ready=profiler.tensorboard_trace_handler(dir_name=TB_DIR),
+    on_trace_ready=profiler.tensorboard_trace_handler(dir_name="profiling"),
     record_shapes=True,
     profile_memory=True,
     with_stack=True,
@@ -408,6 +408,7 @@ def train(
         sampler=train_sampler,
         batch_size=args.train_batch_size,
         collate_fn=collate,
+        num_workers=4,
     )
 
     if args.max_steps > 0:
@@ -734,6 +735,7 @@ def evaluate(
         sampler=eval_sampler,
         batch_size=args.eval_batch_size,
         collate_fn=collate,
+        num_workers=4,
     )
 
     # multi-gpu evaluate
@@ -1198,8 +1200,8 @@ def main():
 
     def register_hooks(module: Module) -> None:
         logger.warning("Registering hook for %s", module)
-        module.register_backward_hook(terminate_on_inf)
-        module.register_backward_hook(terminate_on_nan)
+        module.register_full_backward_hook(terminate_on_inf)
+        module.register_full_backward_hook(terminate_on_nan)
 
     model.apply(register_hooks)
     model.to(args.device)

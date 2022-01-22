@@ -6,7 +6,7 @@ echo "Model to save: $MODEL"
 echo "Patches used: $PATCHES"
 
 export VENV=env-$OUTPUT
-virtualenv --system-site-packages $VENV -p python3
+python -m venv --system-site-packages $VENV
 
 echo "Sourcing env-$MODEL"
 source env-$OUTPUT/bin/activate
@@ -23,11 +23,9 @@ python \
       --model_name_or_path=prajjwal1/bert-mini \
       --tokenizer_name=bert-base-uncased \
       --save_steps 100000000 \
-      --per_gpu_train_batch_size 64 \
+      --per_gpu_train_batch_size 32 \
       --do_train \
       --train_data_file=bert-pretraining.txt \
       --patches $PATCHES
-
-tar cvf $MODEL.tar.gz $MODEL
 
 rm -r $VENV
