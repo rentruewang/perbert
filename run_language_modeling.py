@@ -35,13 +35,14 @@ import h5py
 import numpy as np
 import torch
 from rich import print
+from torch import profiler
 from torch.nn import Embedding, Linear, Module, init
 from torch.nn.utils.rnn import pad_sequence
 from torch.utils.data import DataLoader, Dataset, RandomSampler, SequentialSampler
 from torch.utils.data.distributed import DistributedSampler
 from tqdm import tqdm, trange
 from transformers import *
-from torch import profiler
+
 import richlogger
 from perbert import *
 
