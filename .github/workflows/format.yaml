@@ -1,0 +1,47 @@
+name: Formatting
+on: [push]
+jobs:
+  format-all:
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: [3.9]
+        poetry-version: [1.1.12]
+        os: [ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: 🔔 Check out
+        uses: actions/checkout@v2
+
+      - name: 🏗️ Rust toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+      - name: ⬇️ fd-find, ripgrep
+        run: cargo install fd-find ripgrep
+
+      - name: 🏗️ python
+        uses: actions/setup-python@v2
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: ⬇️ Python Poetry
+        uses: abatilo/actions-poetry@v2.0.0
+        with:
+          poetry-version: ${{ matrix.poetry-version }}
+      - name: ⬇️ Python Dependencies
+        run: poetry install
+      - name: 🏃 autoflake
+        run: poetry run autoflake -ir $(fd -e py | rg -vsF __init__.py) --remove-all-unused-imports
+      - name: 🏃 isort
+        run: poetry run isort --profile=black .
+      - name: 🏃 black
+        run: poetry run black .
+
+      - name: ⬆️ Add and Commit
+        uses: EndBug/add-and-commit@v7
+        with:
+          author_name: "github-actions[bot]"
+          author_email: "github-actions[bot]@users.noreply.github.com"
+          message: "🤖 RenTrueWang thinks you forgot to format your code!"
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
