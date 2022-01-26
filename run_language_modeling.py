@@ -29,7 +29,7 @@ import re
 import shutil
 import sys
 from datetime import datetime
-from typing import Callable, Dict, List, Sequence, Tuple
+from typing import Callable, Dict, List, Tuple
 
 import h5py
 import numpy as np
