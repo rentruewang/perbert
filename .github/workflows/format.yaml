@@ -31,7 +31,7 @@ jobs:
       - name: ⬇️ Python Dependencies
         run: poetry install
       - name: 🏃 autoflake
-        run: poetry run autoflake -ir $(fd -e py | rg -vsF __init__.py) --remove-all-unused-imports
+        run: poetry run autoflake -ir $(fd -e py | rg -vsF __init__.py | rg -vsF external.py) --remove-all-unused-imports
       - name: 🏃 isort
         run: poetry run isort --profile=black .
       - name: 🏃 black

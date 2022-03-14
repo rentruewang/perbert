@@ -1,6 +1,9 @@
-from .external import (
+from abc import abstractmethod
+from typing import Protocol
+
+from transformers.models.bert.configuration_bert import BertConfig
+from transformers.models.bert.modeling_bert import (
     BertAttention,
-    BertConfig,
     BertEmbeddings,
     BertEncoder,
     BertForMaskedLM,
@@ -24,4 +27,5 @@ from .external import (
     BertPreTrainingHeads,
     BertSelfAttention,
     BertSelfOutput,
+    BertForNextSentencePrediction,
 )

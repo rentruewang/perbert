@@ -12,6 +12,7 @@ pytorch-lightning = "^1.5.10"
 pynvml = "^11.4.1"
 rich = "^10.16.1"
 torch = "^1.10.1"
+transformers = "^4.17.0"
 
 [tool.poetry.dev-dependencies]
 autoflake = "^1.4"
