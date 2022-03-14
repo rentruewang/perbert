@@ -8,6 +8,7 @@ from transformers.models.bert.modeling_bert import (
     BertEncoder,
     BertForMaskedLM,
     BertForMultipleChoice,
+    BertForNextSentencePrediction,
     BertForPreTraining,
     BertForPreTrainingOutput,
     BertForQuestionAnswering,
@@ -27,5 +28,4 @@ from transformers.models.bert.modeling_bert import (
     BertPreTrainingHeads,
     BertSelfAttention,
     BertSelfOutput,
-    BertForNextSentencePrediction,
 )

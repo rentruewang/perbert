@@ -1,4 +1,3 @@
-from configparser import ConfigParser
 from .block import Embeddings, Encoder, Pooler
 from .external import (
     BertConfig,
