@@ -1,3 +1,0 @@
-alive_progress
-rich
-transformers==2.8.0

@@ -2,12 +2,13 @@
 name = "bert_exp"
 version = "0.1.0"
 description = "Just my experiments on BERT related stuff."
-authors = ["rentruewang <patrick1031wang@gmail.com>"]
+authors = ["RenChu Wang <patrick1031wang@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
 numpy = "^1.22.0"
 python = "^3.8"
+pytorch-lightning = "^1.5.10"
 pynvml = "^11.4.1"
 rich = "^10.16.1"
 torch = "^1.10.1"
@@ -22,7 +23,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pyright]
-include = ["koila"]
+include = ["bert_exp"]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
