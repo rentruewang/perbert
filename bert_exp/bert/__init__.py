@@ -1,3 +1,20 @@
+from .attention import Attention, SelfAttention, SelfOutput
+from .bert import (
+    ForMaskedLM,
+    ForMultipleChoice,
+    ForNextSentencePrediction,
+    ForPreTraining,
+    LMHeadModel,
+    LMPredictionHead,
+    Model,
+    OnlyMLMHead,
+    OnlyNSPHead,
+    PredictionHeadTransform,
+    PreTrainedModel,
+    PreTrainingHeads,
+)
+from .block import Embeddings, Encoder, Intermediate, Layer, Output, Pooler
+from .config import Config
 from .external import (
     BertAttention,
     BertConfig,

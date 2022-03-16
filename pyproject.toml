@@ -6,12 +6,15 @@ authors = ["RenChu Wang <patrick1031wang@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
+hydra-core = "^1.1.1"
+lightning-bolts = "^0.5.0"
 numpy = "^1.22.0"
+omegaconf = "^2.1.1"
 python = "^3.8"
 pytorch-lightning = "^1.5.10"
-pynvml = "^11.4.1"
 rich = "^10.16.1"
 torch = "^1.10.1"
+torchmetrics = "^0.7.2"
 transformers = "^4.17.0"
 
 [tool.poetry.dev-dependencies]
