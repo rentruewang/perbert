@@ -1,6 +1,5 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
-from . import datasets
 
 import typing
 from pathlib import Path
@@ -9,6 +8,8 @@ import datasets
 from datasets import DatasetDict
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import Dataset
+
+from . import datasets
 
 
 class WikiTextDataModule(LightningDataModule):
