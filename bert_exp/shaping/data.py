@@ -7,9 +7,7 @@ from pathlib import Path
 import datasets
 from datasets import DatasetDict
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import Dataset
-
-from . import datasets
+from torch.utils.data import DataLoader
 
 
 class WikiTextDataModule(LightningDataModule):
@@ -26,19 +24,14 @@ class WikiTextDataModule(LightningDataModule):
     def prepare_data(self):
         parent = str(self.data_dir.parent)
         child = str(self.data_dir.name)
+
         self.dataset = typing.cast(DatasetDict, datasets.load_dataset(parent, child))
 
-    @property
-    def train_dataset(self) -> Dataset:
-        return datasets.wrap(self.dataset["train"])
+    def train_dataloader(self):
+        return DataLoader(self.dataset["train"], batch_size=self.batch_size)
 
-    @property
-    def test_dataset(self) -> Dataset:
-        return datasets.wrap(self.dataset["test"])
+    def test_dataloader(self):
+        return DataLoader(self.dataset["test"], batch_size=self.batch_size)
 
-    @property
-    def validation_dataset(self) -> Dataset:
-        return datasets.wrap(self.dataset["validation"])
-
-    def setup(self, stage: str | None = None) -> None:
-        return super().setup(stage)
+    def val_dataloader(self):
+        return DataLoader(self.dataset["validation"], batch_size=self.batch_size)

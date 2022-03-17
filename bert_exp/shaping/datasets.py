@@ -3,24 +3,32 @@ from typing import Generic, Protocol, TypeVar
 
 from torch.utils.data import Dataset
 
-# TODO: documentation
-
 T = TypeVar("T")
+"T is a invariant type."
+
 K = TypeVar("K", contravariant=True)
+"K is a contravariant type."
+
 V = TypeVar("V", covariant=True)
+"V is a covariant type."
 
 
 class Indexable(Protocol[K, V]):
+    "Indexable type implements both `__len__` and `__getitem__`"
+
     @abstractmethod
     def __len__(self) -> int:
+        "self.__len__() <==> len(self)"
         ...
 
     @abstractmethod
     def __getitem__(self, key: K) -> V:
+        "self.__getitem__(key) <==> self[key]"
+
         ...
 
 
-class _GeneratedDataset(Dataset, Generic[T]):
+class DatasetWrapper(Dataset, Generic[T]):
     def __init__(self, seq: Indexable[int, T]) -> None:
         super().__init__()
 
@@ -32,6 +40,6 @@ class _GeneratedDataset(Dataset, Generic[T]):
     def __getitem__(self, key: int) -> T:
         return self._seq[key]
 
-
-def wrap(seq: Indexable[int, T]) -> Dataset[T]:
-    return _GeneratedDataset[T](seq)
+    @classmethod
+    def wrap(cls, seq: Indexable[int, T]) -> Dataset[T]:
+        return cls(seq)
