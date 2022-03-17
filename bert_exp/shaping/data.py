@@ -9,6 +9,8 @@ from datasets import DatasetDict
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
+from .datasets import DatasetWrapper
+
 
 class WikiTextDataModule(LightningDataModule):
     def __init__(
@@ -27,11 +29,20 @@ class WikiTextDataModule(LightningDataModule):
 
         self.dataset = typing.cast(DatasetDict, datasets.load_dataset(parent, child))
 
+    def train_dataset(self):
+        return DatasetWrapper(self.dataset["train"])
+
+    def test_dataset(self):
+        return DatasetWrapper(self.dataset["test"])
+
+    def val_dataset(self):
+        return DatasetWrapper(self.dataset["validation"])
+
     def train_dataloader(self):
-        return DataLoader(self.dataset["train"], batch_size=self.batch_size)
+        return DataLoader(self.train_dataset(), batch_size=self.batch_size)
 
     def test_dataloader(self):
-        return DataLoader(self.dataset["test"], batch_size=self.batch_size)
+        return DataLoader(self.test_dataset(), batch_size=self.batch_size)
 
     def val_dataloader(self):
-        return DataLoader(self.dataset["validation"], batch_size=self.batch_size)
+        return DataLoader(self.val_dataset(), batch_size=self.batch_size)

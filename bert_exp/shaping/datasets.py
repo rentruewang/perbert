@@ -39,7 +39,3 @@ class DatasetWrapper(Dataset, Generic[T]):
 
     def __getitem__(self, key: int) -> T:
         return self._seq[key]
-
-    @classmethod
-    def wrap(cls, seq: Indexable[int, T]) -> Dataset[T]:
-        return cls(seq)
