@@ -9,6 +9,7 @@ from datasets import DatasetDict
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
 
+from .constants import LightningStage
 from .datasets import DatasetWrapper
 
 
@@ -21,13 +22,18 @@ class WikiTextDataModule(LightningDataModule):
         self.batch_size = batch_size
         self.data_dir = Path(data_dir)
 
-        self.prepare_data()
-
     def prepare_data(self):
         parent = str(self.data_dir.parent)
         child = str(self.data_dir.name)
 
         self.dataset = typing.cast(DatasetDict, datasets.load_dataset(parent, child))
+
+    def setup(self, stage: str | None = None) -> None:
+        if stage == LightningStage.FIT:
+            pass
+
+        if stage == LightningStage.TEST:
+            pass
 
     def train_dataset(self):
         return DatasetWrapper(self.dataset["train"])

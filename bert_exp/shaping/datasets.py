@@ -31,7 +31,6 @@ class Indexable(Protocol[K, V]):
 class DatasetWrapper(Dataset, Generic[T]):
     def __init__(self, seq: Indexable[int, T]) -> None:
         super().__init__()
-
         self._seq = seq
 
     def __len__(self) -> int:
