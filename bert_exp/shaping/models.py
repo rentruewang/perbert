@@ -1,11 +1,10 @@
-from turtle import forward
-from typing import Any, Sequence, Tuple
-import typing
-from torch import Tensor
-from torch.optim import AdamW, Adam
-from pytorch_lightning import LightningModule
+from typing import Any, Sequence
+
 from omegaconf import DictConfig
-from bert_exp.bert import Config, ForMaskedLM, Model, Output
+from pytorch_lightning import LightningModule
+from torch import Tensor
+
+from bert_exp.bert import Config, ForMaskedLM, Output
 
 
 class Bert(LightningModule):
