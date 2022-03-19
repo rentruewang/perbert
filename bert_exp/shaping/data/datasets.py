@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Generic, Protocol, TypeVar
+from typing import Protocol, TypeVar
 
 from torch.utils.data import Dataset
 
@@ -13,8 +13,8 @@ V = TypeVar("V", covariant=True)
 "V is a covariant type."
 
 
-class Indexable(Protocol[K, V]):
-    "Indexable type implements both `__len__` and `__getitem__`"
+class Indexible(Protocol[K, V]):
+    "Indexible type implements both `__len__` and `__getitem__`"
 
     @abstractmethod
     def __len__(self) -> int:
@@ -28,9 +28,22 @@ class Indexable(Protocol[K, V]):
         ...
 
 
-class DatasetWrapper(Dataset, Generic[T]):
-    def __init__(self, seq: Indexable[int, T]) -> None:
+class DatasetWrapper(Dataset, Indexible[int, T]):
+    "DatasetWrapper wraps creates a Dataset from an Indexible."
+
+    def __init__(self, seq: Indexible[int, T]) -> None:
+        """
+        Initializes the DatasetWrapper with an Indexible whose key is of type integer.
+
+        Parameters
+        ----------
+
+        seq: Indexible[int, T]
+            The sequence object to wrap.
+        """
+
         super().__init__()
+
         self._seq = seq
 
     def __len__(self) -> int:
