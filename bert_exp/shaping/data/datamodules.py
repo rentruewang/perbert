@@ -1,18 +1,17 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-
 import typing
 from typing import Dict, NamedTuple
 
 import datasets
 from datasets import DatasetDict
 from pytorch_lightning import LightningDataModule
-from torch.utils.data import DataLoader
+from torch.utils.data import DataLoader, Dataset
 
-from bert_exp.constants import LightningStage
 from bert_exp import constants
-from torch.utils.data import Dataset
+from bert_exp.constants import LightningStage
+
 from .datasets import DatasetWrapper
 
 
