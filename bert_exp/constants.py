@@ -9,10 +9,4 @@ class LightningStage(str, Enum):
     TEST = "test"
 
     def __eq__(self, other: LightningStage | str | None) -> bool:
-        return other is None or str(self) == str(other)
-
-
-if (_cpus := os.cpu_count()) is None:
-    NUM_CPUS = 1
-else:
-    NUM_CPUS = _cpus
+        return (other is None) or (self.value == str(other))

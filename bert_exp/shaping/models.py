@@ -7,9 +7,13 @@ from torch import Tensor
 from bert_exp.bert import Config, ForMaskedLM, Output
 
 
-class Bert(LightningModule):
-    def __init__(self, model_name: str, cfg: DictConfig) -> None:
+class Model(LightningModule):
+    def __init__(self, cfg: DictConfig) -> None:
         super().__init__()
+
+        model_cfg = cfg["model"]
+        model_name = model_cfg["path"]
+
         lm = ForMaskedLM.from_pretrained(model_name)
         if not isinstance(lm, ForMaskedLM):
             raise ValueError(f"Model name: {model_name} is invalid.")
@@ -44,3 +48,7 @@ class Bert(LightningModule):
 
     def configure_optimizers(self):
         raise NotImplementedError
+
+    @classmethod
+    def create(cls, cfg: DictConfig):
+        return cls(cfg)

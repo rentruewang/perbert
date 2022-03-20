@@ -1,5 +1,5 @@
 from abc import abstractmethod
-from typing import Protocol, TypeVar
+from typing import Generic, Protocol, TypeVar
 
 from torch.utils.data import Dataset
 
@@ -28,7 +28,7 @@ class Indexible(Protocol[K, V]):
         ...
 
 
-class DatasetWrapper(Dataset, Indexible[int, T]):
+class DatasetWrapper(Dataset, Generic[T]):
     "DatasetWrapper wraps creates a Dataset from an Indexible."
 
     def __init__(self, seq: Indexible[int, T]) -> None:

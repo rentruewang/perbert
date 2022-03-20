@@ -1,0 +1,15 @@
+seed: 42
+trainer:
+  accelerator: auto
+  accumulate_grad_batches: 1
+  auto_select_gpus: true
+  devices: -1
+  deterministic: true
+model:
+  path: bert-base-uncased
+data:
+  path: wikitext/wikitext-103-v1
+  batch_size: 32
+  num_workers: 0
+callbacks:
+  rich: true
