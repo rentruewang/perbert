@@ -11,7 +11,6 @@ from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 
-from bert_exp import constants
 from bert_exp.constants import LightningStage
 
 from .datasets import DatasetWrapper

@@ -1,6 +1,6 @@
 import pytorch_lightning as pl
 from hydra import main
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
 
 from .data import WikiTextDataModule
 from .models import Model
