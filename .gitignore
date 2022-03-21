@@ -286,6 +286,8 @@ dist
 
 
 # Custom files to ignore
+typings/
+
 .DS_Store
 /.vscode/
 /outputs/

@@ -12,8 +12,7 @@ from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader, Dataset
 
-from bert_exp.bert import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
-from bert_exp.constants import LightningStage
+from bert_exp import AutoTokenizer, BatchEncoding, LightningStage, PreTrainedTokenizer
 
 from .datasets import DatasetWrapper
 

@@ -1,3 +1,4 @@
+# pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
 from enum import Enum
@@ -8,7 +9,7 @@ from pytorch_lightning import LightningModule
 from torch import Tensor, no_grad
 from torch.optim import Adam, AdamW, Optimizer
 
-from bert_exp.bert import BatchEncoding, Config, ForMaskedLM, Output
+from bert_exp import BatchEncoding, Config, ForMaskedLM, Output
 
 
 class OptimizerType(str, Enum):
@@ -43,29 +44,33 @@ class Model(LightningModule):
         output: Output = self(**batch)
 
         # FIXME: loss here is None because labels are not provided.
-        return output.loss
+        return {"loss": output.loss}
 
     @no_grad()
     def validation_step(
         self, batch: BatchEncoding, batch_idx: int
     ) -> Dict[str, Tensor]:
-        return self.training_step(batch, batch_idx=batch_idx)
+        output = self.training_step(batch, batch_idx=batch_idx)
+        return {"val_loss": output["loss"]}
 
     @no_grad()
     def test_step(self, batch: BatchEncoding, batch_idx: int) -> Dict[str, Tensor]:
-        return self.training_step(batch, batch_idx=batch_idx)
+        output = self.training_step(batch, batch_idx=batch_idx)
+        return {"test_loss": output["loss"]}
 
     def configure_optimizers(self) -> Optimizer:
-        model_cfg: str = self.config["model"]
+        model_cfg = self.config["model"]
         optim_type = OptimizerType(model_cfg["optimizer"])
         lr = model_cfg["lr"]
 
         if optim_type == OptimizerType.Adam:
-            return Adam(self.parameters(), lr=lr)
+            optim_cls = Adam
         elif optim_type == OptimizerType.AdamW:
-            return AdamW(self.parameters(), lr=lr)
+            optim_cls = AdamW
         else:
             raise ValueError(f"Optimizer type: {optim_type} not supported.")
+
+        return optim_cls(params=self.parameters(), lr=lr)
 
     @classmethod
     def create(cls, cfg: DictConfig) -> Model:
