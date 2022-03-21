@@ -1,8 +1,6 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import Any
-
 from omegaconf import DictConfig
 from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning.callbacks import RichModelSummary, RichProgressBar

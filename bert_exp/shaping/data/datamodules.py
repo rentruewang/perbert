@@ -1,13 +1,11 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-import os
 import random
-import re
 import typing
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, NamedTuple, Sequence, Tuple
+from typing import Any, Callable, Dict, List, NamedTuple
 
 import datasets
 import loguru
@@ -30,7 +28,6 @@ from bert_exp import (
     PreTrainedTokenizer,
     constants,
 )
-from bert_exp.bert import attention
 
 from .datasets import DatasetWrapper
 
