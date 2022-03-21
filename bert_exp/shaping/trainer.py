@@ -1,3 +1,4 @@
+# pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
 from typing import Any
@@ -8,7 +9,7 @@ from pytorch_lightning.callbacks import RichModelSummary, RichProgressBar
 
 
 class Trainer(PLTrainer):
-    def __init__(self, **kwargs: Any):
+    def __init__(self, **kwargs: Any) -> None:
         super().__init__(**kwargs)
 
     @classmethod

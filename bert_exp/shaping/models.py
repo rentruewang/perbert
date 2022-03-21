@@ -1,8 +1,11 @@
+from __future__ import annotations
+
 from typing import Any, Sequence
 
 from omegaconf import DictConfig
 from pytorch_lightning import LightningModule
 from torch import Tensor
+from torch.optim import Optimizer
 
 from bert_exp.bert import Config, ForMaskedLM, Output
 
@@ -46,9 +49,9 @@ class Model(LightningModule):
     def test_step_end(self, batch_parts: Sequence[Tensor]) -> Tensor:
         raise NotImplementedError
 
-    def configure_optimizers(self):
+    def configure_optimizers(self) -> Optimizer:
         raise NotImplementedError
 
     @classmethod
-    def create(cls, cfg: DictConfig):
+    def create(cls, cfg: DictConfig) -> Model:
         return cls(cfg)

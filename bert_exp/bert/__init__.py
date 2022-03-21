@@ -16,6 +16,8 @@ from .bert import (
 from .block import Embeddings, Encoder, Intermediate, Layer, Output, Pooler
 from .config import Config
 from .external import (
+    AutoTokenizer,
+    BatchEncoding,
     BertAttention,
     BertConfig,
     BertEmbeddings,
@@ -41,4 +43,5 @@ from .external import (
     BertPreTrainingHeads,
     BertSelfAttention,
     BertSelfOutput,
+    PreTrainedTokenizer,
 )

@@ -8,7 +8,7 @@ from .trainer import Trainer
 
 
 @main(config_path="conf", config_name="main")
-def app(cfg: DictConfig):
+def app(cfg: DictConfig) -> None:
     # Always seed everything with the given seed.
     pl.seed_everything(cfg["seed"], workers=True)
 
