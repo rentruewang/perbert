@@ -4,7 +4,7 @@ from __future__ import annotations
 import os
 import typing
 from pathlib import Path
-from typing import Callable, Dict, List, NamedTuple
+from typing import Any, Callable, Dict, List, NamedTuple
 
 import datasets
 from datasets import DatasetDict
@@ -96,7 +96,7 @@ class WikiTextDataModule(LightningDataModule):
         )
 
     @property
-    def _collate_fn(self) -> Callable[..., BatchEncoding]:
+    def _collate_fn(self) -> Callable[[Any], BatchEncoding]:
         return self._tokenize_batch
 
     def train_dataloader(self) -> DataLoader:
