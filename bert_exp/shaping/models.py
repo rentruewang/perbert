@@ -44,6 +44,7 @@ class Model(LightningModule):
         output: Output = self(**batch)
 
         # FIXME: loss here is None because labels are not provided.
+        assert isinstance(output.loss, Tensor)
         return {"loss": output.loss}
 
     @no_grad()
@@ -71,7 +72,3 @@ class Model(LightningModule):
             raise ValueError(f"Optimizer type: {optim_type} not supported.")
 
         return optim_cls(params=self.parameters(), lr=lr)
-
-    @classmethod
-    def create(cls, cfg: DictConfig) -> Model:
-        return cls(cfg)

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from enum import Enum
 
 
@@ -12,3 +13,9 @@ class LightningStage(str, Enum):
 
     def __eq__(self, other: LightningStage | str | None) -> bool:
         return (other is None) or (str(self) == str(other))
+
+
+if (_cpus := os.cpu_count()) is not None:
+    NUM_CPUS = _cpus
+else:
+    NUM_CPUS = 1

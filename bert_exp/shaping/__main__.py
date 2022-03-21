@@ -12,11 +12,11 @@ def app(cfg: DictConfig) -> None:
     # Always seed everything with the given seed.
     pl.seed_everything(cfg["seed"], workers=True)
 
-    trainer = Trainer.create(cfg)
+    trainer = Trainer(cfg)
 
-    model = Model.create(cfg)
+    model = Model(cfg)
 
-    datamodule = WikiTextDataModule.create(cfg)
+    datamodule = WikiTextDataModule(cfg)
 
     trainer.fit(model=model, datamodule=datamodule)
 
