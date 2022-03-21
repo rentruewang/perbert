@@ -4,13 +4,12 @@ from __future__ import annotations
 import os
 import typing
 from pathlib import Path
-from typing import Any, Callable, Dict, List, NamedTuple
+from typing import Callable, Dict, List, NamedTuple
 
 import datasets
 from datasets import DatasetDict
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
-from torch import Tensor
 from torch.utils.data import DataLoader, Dataset
 
 from bert_exp.bert import AutoTokenizer, BatchEncoding, PreTrainedTokenizer
