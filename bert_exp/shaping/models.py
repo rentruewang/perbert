@@ -1,15 +1,14 @@
 from __future__ import annotations
 
 from enum import Enum
-from typing import Any, Dict, Sequence
+from typing import Any, Dict
 
 from omegaconf import DictConfig
 from pytorch_lightning import LightningModule
 from torch import Tensor, no_grad
-from torch.nn import functional as F
 from torch.optim import Adam, AdamW, Optimizer
 
-from bert_exp.bert import Config, ForMaskedLM, Output, BatchEncoding
+from bert_exp.bert import BatchEncoding, Config, ForMaskedLM, Output
 
 
 class OptimizerType(str, Enum):
