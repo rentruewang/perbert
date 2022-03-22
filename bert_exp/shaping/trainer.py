@@ -2,9 +2,10 @@
 from __future__ import annotations
 
 from typing import List
-from pl_bolts.callbacks import ORTCallback, PrintTableMetricsCallback
+
 import loguru
-from omegaconf import DictConfig, OmegaConf
+from omegaconf import DictConfig
+from pl_bolts.callbacks import ORTCallback, PrintTableMetricsCallback
 from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning.callbacks import (
     Callback,
