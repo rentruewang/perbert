@@ -1,7 +1,7 @@
 from typing import Callable
 
 import loguru
-from torch.nn import Embedding, LayerNorm, Linear, Module, init
+from torch.nn import Embedding, LayerNorm, Linear, Module
 
 from bert_exp import Config
 

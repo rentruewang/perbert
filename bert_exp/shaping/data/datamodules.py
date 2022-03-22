@@ -18,7 +18,6 @@ from numpy import random as np_random
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
-from torch.utils.data import Dataset as TorchDataset
 
 from bert_exp import (
     AutoTokenizer,

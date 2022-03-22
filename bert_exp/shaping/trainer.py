@@ -11,7 +11,6 @@ from pytorch_lightning.callbacks import (
     Callback,
     DeviceStatsMonitor,
     EarlyStopping,
-    GradientAccumulationScheduler,
     ModelCheckpoint,
     RichModelSummary,
     RichProgressBar,
