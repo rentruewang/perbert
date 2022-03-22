@@ -89,7 +89,7 @@ class WikiTextDataModule(LightningDataModule):
 
         self.vocab_size = Config().vocab_size
 
-        self.datasets: Dict[str, TorchDataset] = {}
+        self.datasets: Dict[str, DatasetWrapper] = {}
 
     def _prepare_data(self) -> DatasetDict:
         (parent, child) = self.path
@@ -191,6 +191,12 @@ class WikiTextDataModule(LightningDataModule):
 
         return {"input_ids": data, "attention_mask": attn, "labels": labels}
 
+    def _enc_trunc_pad_mask(self, entry: Dict[str, str]) -> Dict[str, ndarray]:
+        encoded = self._encode(entry)
+        unified_length = self._trunc_pad(encoded)
+        masked = self._mask_tokens(unified_length)
+        return masked
+
     def preprocess(self, dataset: ArrowDataset) -> ArrowDataset:
         loguru.logger.info("Filtering empty sequences.")
         dataset = dataset.filter(self._filter_empty, batched=False)
@@ -204,16 +210,16 @@ class WikiTextDataModule(LightningDataModule):
         dataset = dataset.map(
             function=function,
             batched=True,
-            batch_size=self.batch_size,
+            batch_size=self.proc_batch,
             num_proc=self.num_workers,
         )
 
-        loguru.logger.info("Encoding sequences to integers.")
-        dataset = dataset.map(function=self._encode, num_proc=self.num_workers)
-        loguru.logger.info("Truncating/padding sequences to the desired length.")
-        dataset = dataset.map(function=self._trunc_pad, num_proc=self.num_workers)
-        loguru.logger.info("Masking sequences.")
-        dataset = dataset.map(function=self._mask_tokens, num_proc=self.num_workers)
+        loguru.logger.info(
+            "Encode, truncate / pad to desired legnth, and mask sequences."
+        )
+        dataset = dataset.map(
+            function=self._enc_trunc_pad_mask, num_proc=self.num_workers
+        )
         return dataset
 
     def _map_to_batch_enc(self, entries: List[Dict[str, List[int]]]) -> BatchEncoding:
@@ -228,8 +234,11 @@ class WikiTextDataModule(LightningDataModule):
         return self._map_to_batch_enc
 
     def train_dataloader(self) -> DataLoader:
+        train_dataset = self.datasets["train"]
+        loguru.logger.debug(f"Length of train dataset: {len(train_dataset)}")
+
         return DataLoader(
-            self.datasets["train"],
+            train_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
@@ -237,8 +246,11 @@ class WikiTextDataModule(LightningDataModule):
         )
 
     def test_dataloader(self) -> DataLoader:
+        test_dataset = self.datasets["test"]
+        loguru.logger.debug(f"Length of test dataset: {len(test_dataset)}")
+
         return DataLoader(
-            self.datasets["test"],
+            test_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
@@ -246,8 +258,11 @@ class WikiTextDataModule(LightningDataModule):
         )
 
     def val_dataloader(self) -> DataLoader:
+        val_dataset = self.datasets["validation"]
+        loguru.logger.debug(f"Length of validation dataset: {len(val_dataset)}")
+
         return DataLoader(
-            self.datasets["validation"],
+            val_dataset,
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,

@@ -24,7 +24,7 @@ class Trainer(PLTrainer):
 
         trainer_cfg = self.cfg["trainer"]
 
-        loguru.logger.info(self.cfg)
+        loguru.logger.info(f"Config used: {self.cfg}")
 
         super().__init__(callbacks=self._callbacks, **trainer_cfg)
 
@@ -39,9 +39,6 @@ class Trainer(PLTrainer):
 
         if callback_cfg["device_stats"]:
             callbacks.append(DeviceStatsMonitor())
-
-        if callback_cfg["grad_acc_scheduler"]:
-            callbacks.append(GradientAccumulationScheduler())
 
         if ckpt := callback_cfg["checkpoint"]:
             callbacks.append(ModelCheckpoint(ckpt))

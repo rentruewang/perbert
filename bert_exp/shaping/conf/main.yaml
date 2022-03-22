@@ -1,10 +1,13 @@
 seed: 42
+logger:
+  level: INFO
 trainer:
   accelerator: auto
   accumulate_grad_batches: 1
   auto_scale_batch_size: binsearch
   auto_select_gpus: true
   default_root_dir: "."
+  detect_anomaly: true
   deterministic: true
   devices: -1
   enable_checkpointing: true
@@ -14,7 +17,7 @@ trainer:
   gradient_clip_val: 1
   logger: true
   max_steps: 100_000
-  min_steps: 1
+  min_steps: null
   num_nodes: 1
   num_processes: 1
   precision: 16
@@ -22,6 +25,8 @@ trainer:
   replace_sampler_ddp: true
   strategy: null
   sync_batchnorm: true
+  terminate_on_nan: true
+  weights_summary: top
 model:
   path: bert-base-uncased
   optimizer: adamw
@@ -46,7 +51,6 @@ callbacks:
   checkpoint: null
   device_stats: true
   early_stopping: false
-  grad_acc_scheduler: false
   onnx: true
   rich: true
-  table_metrics: true
+  table_metrics: false

@@ -4,12 +4,15 @@ from __future__ import annotations
 from enum import Enum
 from typing import Any, Dict
 
+import loguru
 from omegaconf import DictConfig
 from pytorch_lightning import LightningModule
 from torch import Tensor, no_grad
 from torch.optim import Adam, AdamW, Optimizer
 
 from bert_exp import BatchEncoding, Config, ForMaskedLM, Output
+
+from .init import bert_init
 
 
 class OptimizerType(str, Enum):
@@ -24,7 +27,13 @@ class Model(LightningModule):
         model_cfg = cfg["model"]
         model_name = model_cfg["path"]
 
-        lm = ForMaskedLM.from_pretrained(model_name)
+        if model_name is not None:
+            lm = ForMaskedLM.from_pretrained(model_name)
+        else:
+            bert_config = Config()
+            lm = ForMaskedLM(bert_config)
+            lm.apply(bert_init(bert_config))
+
         if not isinstance(lm, ForMaskedLM):
             raise ValueError(f"Model name: {model_name} is invalid.")
 
@@ -39,11 +48,10 @@ class Model(LightningModule):
         return self.lm(**kwargs)
 
     def training_step(self, batch: BatchEncoding, batch_idx: int) -> Dict[str, Tensor]:
-        del batch_idx
+        loguru.logger.trace(f"Training step batch: {batch_idx}")
 
         output: Output = self(**batch)
 
-        # FIXME: loss here is None because labels are not provided.
         assert isinstance(output.loss, Tensor)
         return {"loss": output.loss}
 
@@ -51,13 +59,21 @@ class Model(LightningModule):
     def validation_step(
         self, batch: BatchEncoding, batch_idx: int
     ) -> Dict[str, Tensor]:
-        output = self.training_step(batch, batch_idx=batch_idx)
-        return {"val_loss": output["loss"]}
+        loguru.logger.trace(f"Validation step batch: {batch_idx}")
+
+        output: Output = self(**batch)
+
+        assert isinstance(output.loss, Tensor)
+        return {"val_loss": output.loss}
 
     @no_grad()
     def test_step(self, batch: BatchEncoding, batch_idx: int) -> Dict[str, Tensor]:
-        output = self.training_step(batch, batch_idx=batch_idx)
-        return {"test_loss": output["loss"]}
+        loguru.logger.trace(f"Test step batch: {batch_idx}")
+
+        output: Output = self(**batch)
+
+        assert isinstance(output.loss, Tensor)
+        return {"test_loss": output.loss}
 
     def configure_optimizers(self) -> Optimizer:
         model_cfg = self.config["model"]
