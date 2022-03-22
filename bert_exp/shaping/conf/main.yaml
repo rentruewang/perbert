@@ -43,4 +43,10 @@ data:
     unchanged: 0.1
     mask_type: token
 callbacks:
+  checkpoint: null
+  device_stats: true
+  early_stopping: false
+  grad_acc_scheduler: false
+  onnx: true
   rich: true
+  table_metrics: true
