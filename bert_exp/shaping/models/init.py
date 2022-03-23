@@ -1,8 +1,7 @@
 from typing import Callable
 
 import loguru
-from torch.nn import Embedding, LayerNorm, Linear, Module
-
+from torch.nn import Embedding, LayerNorm, Linear, Module, init
 from bert_exp import Config
 
 
@@ -23,23 +22,23 @@ def bert_init(cfg: Config) -> Callable[[Module], None]:
 
 
 def linear_init(layer: Linear, cfg: Config) -> None:
-    loguru.logger.debug(f"Calling linear_init on {layer}")
+    loguru.logger.trace(f"Calling linear_init on {layer}")
 
-    layer.weight.normal_(mean=0.0, std=cfg.initializer_range)
+    init.normal_(layer.weight, mean=0.0, std=cfg.initializer_range)
 
     if (bias := layer.bias) is not None:
-        bias.zero_()
+        init.zeros_(bias)
 
 
 def layernorm_init(layer: LayerNorm, cfg: Config) -> None:
     del cfg
-    loguru.logger.debug(f"Calling linearnorm_init on {layer}")
+    loguru.logger.trace(f"Calling linearnorm_init on {layer}")
 
-    layer.weight.fill_(1.0)
-    layer.bias.fill_(0.0)
+    init.ones_(layer.weight)
+    init.zeros_(layer.bias)
 
 
 def emb_init(layer: Embedding, cfg: Config) -> None:
-    loguru.logger.debug(f"Calling emb_init on {layer}")
+    loguru.logger.trace(f"Calling emb_init on {layer}")
 
-    layer.weight.normal_(mean=0.0, std=cfg.initializer_range)
+    init.normal_(layer.weight, mean=0.0, std=cfg.initializer_range)

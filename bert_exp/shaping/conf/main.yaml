@@ -25,10 +25,9 @@ trainer:
   replace_sampler_ddp: true
   strategy: null
   sync_batchnorm: true
-  terminate_on_nan: true
   weights_summary: top
 model:
-  path: bert-base-uncased
+  path: null
   optimizer: adamw
   lr: 1e-5
 data:
