@@ -3,7 +3,6 @@ from __future__ import annotations
 
 from typing import List
 
-import loguru
 from omegaconf import DictConfig
 from pl_bolts.callbacks import ORTCallback, PrintTableMetricsCallback
 from pytorch_lightning import Trainer as PLTrainer

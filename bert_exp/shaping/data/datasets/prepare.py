@@ -1,8 +1,9 @@
 # pyright: reportPrivateImportUsage=false
-import datasets
-from datasets import Dataset, DatasetDict
-from omegaconf import DictConfig
 import typing
+
+import datasets
+from datasets import DatasetDict
+from omegaconf import DictConfig
 
 
 def get(cfg: DictConfig) -> DatasetDict:
