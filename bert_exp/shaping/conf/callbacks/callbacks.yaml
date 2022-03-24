@@ -1,0 +1,6 @@
+checkpoint: null
+device_stats: false
+early_stopping: false
+onnx: false
+rich: true
+table_metrics: false

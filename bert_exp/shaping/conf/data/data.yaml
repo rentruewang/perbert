@@ -1,0 +1,13 @@
+defaults:
+  - _self_
+  - dataset: wikitext.yaml
+  - lm: lm.yaml
+
+tokenizer: bert-base-uncased
+use_fast: true
+max_length: 512
+batch_size: 32
+num_workers: 0
+pin_memory: false
+proc_batch: 1000
+line_by_line: false

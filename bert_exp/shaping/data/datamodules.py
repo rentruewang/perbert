@@ -11,8 +11,7 @@ import datasets
 import loguru
 import numpy as np
 import torch
-from datasets import Dataset as ArrowDataset
-from datasets import DatasetDict
+from datasets import Dataset, DatasetDict
 from numpy import ndarray
 from numpy import random as np_random
 from omegaconf import DictConfig
@@ -52,7 +51,7 @@ class MaskType(str, Enum):
     Attention = "attention"
 
 
-class WikiTextDataModule(LightningDataModule):
+class TextDataModule(LightningDataModule):
     def __init__(self, cfg: DictConfig) -> None:
         super().__init__()
 
@@ -86,7 +85,7 @@ class WikiTextDataModule(LightningDataModule):
             data_cfg["tokenizer"], use_fast=data_cfg["use_fast"]
         )
 
-        self.vocab_size = Config().vocab_size
+        self.vocab_size: int = Config().vocab_size
 
         self.datasets: Dict[str, DatasetWrapper] = {}
 
@@ -196,7 +195,7 @@ class WikiTextDataModule(LightningDataModule):
         masked = self._mask_tokens(unified_length)
         return masked
 
-    def preprocess(self, dataset: ArrowDataset) -> ArrowDataset:
+    def preprocess(self, dataset: Dataset) -> Dataset:
         loguru.logger.info("Filtering empty sequences.")
         dataset = dataset.filter(self._filter_empty, batched=False)
 

@@ -23,8 +23,6 @@ class Trainer(PLTrainer):
 
         trainer_cfg = self.cfg["trainer"]
 
-        loguru.logger.info(f"Config used: {self.cfg}")
-
         super().__init__(callbacks=self._callbacks, **trainer_cfg)
 
     @property

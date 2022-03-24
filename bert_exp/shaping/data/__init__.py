@@ -1,2 +1,2 @@
-from .datamodules import WikiTextDataModule
+from .datamodules import TextDataModule
 from .datasets import DatasetWrapper
