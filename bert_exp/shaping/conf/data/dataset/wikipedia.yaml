@@ -1,4 +1,3 @@
 path: wikipedia
 date: "20220120"
 language: en
-beam_runner: DirectRunner

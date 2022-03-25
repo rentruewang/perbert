@@ -6,7 +6,6 @@ authors = ["RenChu Wang <patrick1031wang@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
-accelerate = "^0.6.1"
 apache-beam = "^2.37.0"
 datasets = "^2.0.0"
 hydra-core = "^1.1.1"
@@ -27,8 +26,11 @@ torch = "^1.11.0"
 torch-ort = "^1.9.0"
 torchmetrics = "^0.7.2"
 transformers = "^4.17.0"
+typing-extensions = "^4.1.1"
+wandb = "^0.12.11"
 
 [tool.poetry.dev-dependencies]
+accelerate = "^0.6.1"
 autoflake = "^1.4"
 black = "^21.12b0"
 ipython = "^8.1.1"
