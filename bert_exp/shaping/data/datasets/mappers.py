@@ -4,10 +4,8 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Any, Callable, Dict, Generic, List, Protocol, TypeVar
 
-from datasets import Dataset
 from numpy import ndarray
 from omegaconf import DictConfig
-from torch.utils.data import Dataset as TorchDataset
 from transformers import AutoTokenizer
 from typing_extensions import Self
 
