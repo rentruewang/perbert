@@ -7,7 +7,7 @@ from typing import Dict, Generic, Protocol, Sized, TypeVar
 from datasets import DatasetDict
 from torch.utils.data import Dataset
 
-from bert_exp.constants import Splits
+from bert_exp.constants import LightningStage, Splits
 
 T = TypeVar("T")
 "T is a invariant type."

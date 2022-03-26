@@ -1,13 +1,26 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
+import typing
+from enum import Enum
+from typing import Any, Callable, Dict, List
+
 import loguru
+from datasets import DatasetDict
+from numpy import ndarray
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
+from torch import Tensor
 from torch.utils.data import DataLoader
 
 from bert_exp import constants
-from bert_exp.bert import AutoTokenizer, Config, DataCollatorForLanguageModeling
+from bert_exp.bert import (
+    AutoTokenizer,
+    BatchEncoding,
+    Config,
+    DataCollatorForLanguageModeling,
+    PreTrainedTokenizer,
+)
 from bert_exp.constants import LightningStage, Splits
 
 from . import datasets
@@ -19,7 +32,7 @@ class TextDataModule(LightningDataModule):
         super().__init__()
 
         self.cfg = cfg
-        data_cfg = cfg["data"]
+        data_cfg = self.cfg["data"]
 
         self.batch_size = data_cfg["batch"]["data"]
         self.pin_memory = data_cfg["pin_memory"]
@@ -65,9 +78,9 @@ class TextDataModule(LightningDataModule):
         if stage == LightningStage.TEST:
             assert Splits.TEST in self.datasets.keys(), self.datasets
 
-    def _collate_fn(self, inputs):
-        print(inputs)
-        return self.collator(inputs)
+    def _collate_hook(self, inputs: Any) -> Any:
+        loguru.logger.debug(inputs)
+        return self.collator(inputs, return_tensors="pt")
 
     def _dataloader(self, split: Splits) -> DataLoader:
         dataset = self.datasets[split]
@@ -78,7 +91,7 @@ class TextDataModule(LightningDataModule):
             batch_size=self.batch_size,
             num_workers=self.num_workers,
             pin_memory=self.pin_memory,
-            collate_fn=self._collate_fn,
+            collate_fn=self._collate_hook,
         )
 
     def train_dataloader(self) -> DataLoader:

@@ -1,15 +1,24 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from abc import abstractmethod
-from typing import Any, Callable, Dict, List, Protocol, TypeVar
+from abc import abstractclassmethod, abstractmethod
+from ast import Call, Return
+from asyncore import write
+from lib2to3.pgen2.tokenize import tokenize
+from typing import Any, Callable, Dict, Generic, List, Protocol, TypeVar
 
 import loguru
+import numpy as np
 from numpy import ndarray
 from omegaconf import DictConfig
 from typing_extensions import Self
 
-from bert_exp.bert import AutoTokenizer, BatchEncoding
+from bert_exp.bert import (
+    AutoTokenizer,
+    BatchEncoding,
+    PreTrainedTokenizer,
+    PreTrainedTokenizerFast,
+)
 
 
 class Mappable(Protocol):
@@ -35,10 +44,32 @@ class Mappable(Protocol):
         batch_size: int,
         writer_batch_size: int,
         num_proc: int,
-        drop_last_batch: bool,
-        desc: str,
+        remove_columns: List[str] | None = None,
+        desc: str | None = None,
     ) -> Self:
         ...
+
+    @property
+    @abstractmethod
+    def column_names(self) -> List[str] | Dict[str, List[str]]:
+        ...
+
+    @abstractmethod
+    def remove_columns(self, column_names: str | List[str]) -> Self:
+        ...
+
+
+def _flat_column_names(mapper: Mappable) -> List[str]:
+    columns = mapper.column_names
+
+    if isinstance(columns, List):
+        return columns
+
+    columns = sum(columns.values(), [])
+    columns = set(columns)
+    columns = list(columns)
+
+    return columns
 
 
 T = TypeVar("T", bound=Mappable)
@@ -50,17 +81,18 @@ class Mapper(Protocol[T]):
         ...
 
     @abstractmethod
-    def __call__(self) -> T:
+    def apply(self) -> T:
         ...
 
     @classmethod
     def map(cls, cfg: DictConfig, mapper: T) -> T:
-        return cls(cfg, mapper)()
+        return cls(cfg, mapper).apply()
 
 
 class TextMapper(Mapper[T]):
     def __init__(self, cfg: DictConfig, mapper: T) -> None:
         self.mapper = mapper
+        self.init_columns = _flat_column_names(mapper)
 
         data_cfg = cfg["data"]
 
@@ -75,36 +107,41 @@ class TextMapper(Mapper[T]):
     def _filter_empty(self, entry: Dict[str, str]) -> bool:
         return len(entry["text"]) > 0
 
-    def _tokenize(self, text: str, max_length: int | None = None) -> BatchEncoding:
-        o = self.tokenizer(
-            text,
+    def _line_by_line(self, entries: Dict[str, str]) -> BatchEncoding:
+        return self.tokenizer(
+            entries["text"],
             padding=self.padding,
-            max_length=max_length,
+            max_length=self.max_length,
             truncation=True,
             return_special_tokens_mask=True,
             return_tensors="np",
         )
-        return o
-
-    def _line_by_line(self, entries: Dict[str, str]) -> BatchEncoding:
-        text = entries["text"]
-        return self._tokenize(text, self.max_length)
 
     def _joined_lines(self, entries: Dict[str, List[str]]) -> Dict[str, List[ndarray]]:
-        texts = entries["text"]
-        joined_line = " ".join(texts)
-        assert joined_line
-        tokenized = self._tokenize(joined_line)
+        joined_line = " ".join(entries["text"])
+
+        tokenized = self.tokenizer(
+            joined_line,
+            return_special_tokens_mask=True,
+            return_tensors="np",
+        )
+
+        tokenized = {key: np.squeeze(value, 0) for (key, value) in tokenized.items()}
         length = self.max_length
+
         return {
-            key: value[idx : idx + length]
+            key: [
+                value[idx : idx + length]
+                for idx in range(0, len(value) - length, length)
+            ]
             for (key, value) in tokenized.items()
-            for idx in range(0, len(value), length)
         }
 
-    def __call__(self) -> T:
+    def apply(self) -> T:
+        mapper = self.mapper
+
         loguru.logger.info("Removing empty text sequences.")
-        self.mapper = self.mapper.filter(
+        mapper = mapper.filter(
             self._filter_empty,
             batched=False,
             batch_size=1,
@@ -112,28 +149,30 @@ class TextMapper(Mapper[T]):
             num_proc=self.num_workers,
             desc="Removing empty text sequences.",
         )
+        loguru.logger.debug(mapper)
 
         if self.line_by_line:
             loguru.logger.info("Tokenizing texts line by line.")
-            self.mapper = self.mapper.map(
+            mapper = mapper.map(
                 self._line_by_line,
-                batched=False,
+                batched=True,
                 batch_size=1,
                 writer_batch_size=self.proc_batch,
                 num_proc=self.num_workers,
-                drop_last_batch=False,
+                remove_columns=self.init_columns,
                 desc="Line by line tokenization.",
             )
         else:
             loguru.logger.info("Tokenizing texts by joining lines together.")
-            self.mapper = self.mapper.map(
+            mapper = mapper.map(
                 self._joined_lines,
                 batched=True,
                 batch_size=self.proc_batch,
                 writer_batch_size=self.proc_batch,
-                drop_last_batch=False,
                 num_proc=self.num_workers,
+                remove_columns=self.init_columns,
                 desc="Joined lines tokenization.",
             )
 
-        return self.mapper
+        loguru.logger.debug(mapper)
+        return mapper
