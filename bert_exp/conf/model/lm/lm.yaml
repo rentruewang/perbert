@@ -1,5 +1,5 @@
 ignore: -100
-mask: 0.15
+mask_prob: 0.15
 random: 0.1
 unchanged: 0.1
 mask_type: token

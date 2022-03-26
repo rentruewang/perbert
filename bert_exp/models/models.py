@@ -10,7 +10,7 @@ from pytorch_lightning import LightningModule
 from torch import Tensor, no_grad
 from torch.optim import Adam, AdamW, Optimizer
 
-from bert_exp import BatchEncoding, Config, ForMaskedLM, Output
+from bert_exp.bert import BatchEncoding, Config, ForMaskedLM, Output
 
 from .init import bert_init
 

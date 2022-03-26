@@ -1,0 +1,25 @@
+defaults:
+  - dataset: local.yaml
+  - _self_
+
+dataset:
+  feature: text
+
+workers:
+  dataset: 0
+  dataloader: 0
+
+splits:
+  validation: 0.01
+  test: 0.04
+
+batch:
+  data: 32
+  proc: 1000
+
+tokenizer: bert-base-uncased
+use_fast: true
+max_length: 512
+pin_memory: false
+line_by_line: false
+padding: max_length

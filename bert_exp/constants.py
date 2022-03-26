@@ -3,28 +3,34 @@ from __future__ import annotations
 import os
 from enum import Enum
 
+from typing_extensions import Self
 
-class LightningStage(str, Enum):
-    FIT = "fit"
-    TEST = "test"
 
+class StrEnum(str, Enum):
     def __str__(self) -> str:
         return self.value
 
-    def __eq__(self, other: LightningStage | str | None) -> bool:
-        return (other is None) or (str(self) == str(other))
+    def __hash__(self) -> int:
+        return hash(str(self))
+
+    def __eq__(self, other: Self | str) -> bool:
+        return str(self) == str(other)
 
 
-class Splits(str, Enum):
+class LightningStage(StrEnum):
+    FIT = "fit"
+    TEST = "test"
+
+
+class Splits(StrEnum):
     TRAIN = "train"
     TEST = "test"
     VALIDATION = "validation"
 
-    def __str__(self) -> str:
-        return self.value
 
-    def __eq__(self, other: Splits | str) -> bool:
-        return str(self) == str(other)
+class MaskType(str, Enum):
+    Token = "token"
+    Attention = "attention"
 
 
 if (_cpus := os.cpu_count()) is not None:

@@ -43,5 +43,7 @@ from .external import (
     BertPreTrainingHeads,
     BertSelfAttention,
     BertSelfOutput,
+    DataCollatorForLanguageModeling,
     PreTrainedTokenizer,
+    PreTrainedTokenizerFast,
 )

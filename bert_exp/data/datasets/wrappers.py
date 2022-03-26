@@ -1,7 +1,13 @@
-from abc import abstractmethod
-from typing import Generic, Protocol, Sized, TypeVar
+# pyright: reportPrivateImportUsage=false
+from __future__ import annotations
 
+from abc import abstractmethod
+from typing import Dict, Generic, Protocol, Sized, TypeVar
+
+from datasets import DatasetDict
 from torch.utils.data import Dataset
+
+from bert_exp.constants import LightningStage, Splits
 
 T = TypeVar("T")
 "T is a invariant type."
@@ -51,3 +57,19 @@ class DatasetWrapper(Dataset, Sized, Generic[T]):
 
     def __getitem__(self, key: int) -> T:
         return self._seq[key]
+
+
+class DatasetDictWrapper(Dict[str, V]):
+    def __init__(self, dd: DatasetDict) -> None:
+        super().__init__(dd)
+
+        # Additional checks that all keys are provided.
+        for split in Splits:
+            if str(split) not in dd:
+                raise KeyError(f"Key {split} not found in DatasetDict")
+
+    def __getitem__(self, key: str | Splits) -> V:
+        if isinstance(key, Splits):
+            key = str(key)
+
+        return super().__getitem__(key)

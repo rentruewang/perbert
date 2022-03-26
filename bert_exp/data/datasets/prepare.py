@@ -2,17 +2,23 @@
 import typing
 
 import datasets
+import loguru
 from datasets import DatasetDict
 from omegaconf import DictConfig
 
 from bert_exp.constants import Splits
 
 from .mappers import TextMapper
+from .wrappers import DatasetDictWrapper
 
 
 def get(cfg: DictConfig) -> DatasetDict:
+    loguru.logger.info("Fetching the dataset.")
+
     data_cfg = cfg["data"]
-    dicts = typing.cast(DatasetDict, datasets.load_dataset(**data_cfg["dataset"]))
+    dicts = typing.cast(
+        DatasetDict, datasets.load_dataset(**data_cfg["dataset"]["args"])
+    )
 
     if all(str(key) in dicts for key in Splits):
         return dicts
@@ -42,9 +48,27 @@ def get(cfg: DictConfig) -> DatasetDict:
     )
 
 
-def prepare(cfg: DictConfig) -> DatasetDict:
-    data_dicts = get(cfg)
+def process(cfg: DictConfig, data_dicts: DatasetDict) -> DatasetDict:
+    data_cfg = cfg["data"]
 
+    loguru.logger.info("Preprocessing: tokenizing and truncating / padding the lines.")
     data_dicts = TextMapper.map(cfg, data_dicts)
 
+    if location := data_cfg.get("save_to_disk", None):
+        loguru.logger.info("Saving dataset to disk.")
+        data_dicts.save_to_disk(location)
+
     return data_dicts
+
+
+def prepare(cfg: DictConfig) -> DatasetDictWrapper:
+    dataset_cfg = cfg["data"]["dataset"]
+    if location := dataset_cfg.get("load_from_disk", None):
+        loguru.logger.info("Loading dataset from disk.")
+        data_dicts = typing.cast(DatasetDict, datasets.load_from_disk(location))
+    else:
+        loguru.logger.info("Preparing datasets")
+        data_dicts = get(cfg)
+        data_dicts = process(cfg, data_dicts)
+
+    return DatasetDictWrapper(data_dicts)

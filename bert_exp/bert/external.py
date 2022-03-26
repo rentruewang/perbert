@@ -1,7 +1,4 @@
-# pyright: reportPrivateImportUsage=false
-from abc import abstractmethod
-from typing import Protocol
-
+from transformers.data.data_collator import DataCollatorForLanguageModeling
 from transformers.models.auto.modeling_auto import AutoModel
 from transformers.models.auto.tokenization_auto import AutoTokenizer
 from transformers.models.bert.configuration_bert import BertConfig
@@ -34,3 +31,4 @@ from transformers.models.bert.modeling_bert import (
 )
 from transformers.tokenization_utils import PreTrainedTokenizer
 from transformers.tokenization_utils_base import BatchEncoding
+from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
