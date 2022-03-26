@@ -1,26 +1,15 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-import typing
-from enum import Enum
-from typing import Any, Callable, Dict, List
+from typing import Any
 
 import loguru
-from datasets import DatasetDict
-from numpy import ndarray
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
-from torch import Tensor
 from torch.utils.data import DataLoader
 
 from bert_exp import constants
-from bert_exp.bert import (
-    AutoTokenizer,
-    BatchEncoding,
-    Config,
-    DataCollatorForLanguageModeling,
-    PreTrainedTokenizer,
-)
+from bert_exp.bert import AutoTokenizer, Config, DataCollatorForLanguageModeling
 from bert_exp.constants import LightningStage, Splits
 
 from . import datasets
