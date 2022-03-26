@@ -9,6 +9,7 @@ from .data import TextDataModule
 from .models import Model
 from .trainer import Trainer
 
+
 @main(config_path="conf", config_name="main")
 def app(cfg: DictConfig) -> None:
     # Always seed everything with the given seed.

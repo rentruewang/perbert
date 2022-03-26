@@ -1,23 +1,15 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from abc import abstractclassmethod, abstractmethod
-from ast import Call, Return
-from asyncore import write
-from lib2to3.pgen2.tokenize import tokenize
-from typing import Any, Callable, Dict, Generic, List, Protocol, TypeVar
+from abc import abstractmethod
+from typing import Any, Callable, Dict, List, Protocol, TypeVar
 
+import loguru
 from numpy import ndarray
 from omegaconf import DictConfig
 from typing_extensions import Self
 
-from bert_exp.bert import (
-    AutoTokenizer,
-    PreTrainedTokenizer,
-    PreTrainedTokenizerFast,
-    BatchEncoding,
-)
-import loguru
+from bert_exp.bert import AutoTokenizer, BatchEncoding
 
 
 class Mappable(Protocol):
