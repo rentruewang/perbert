@@ -1,4 +1,6 @@
 # pyright: reportPrivateImportUsage=false
+from __future__ import annotations
+
 import typing
 from pathlib import Path
 
@@ -13,7 +15,7 @@ from .mappers import TextMapper
 from .wrappers import DatasetDictWrapper
 
 
-def get(cfg: DictConfig) -> DatasetDict:
+def load(cfg: DictConfig) -> DatasetDict:
     loguru.logger.info("Fetching the dataset.")
 
     data_cfg = cfg["data"]
@@ -57,20 +59,28 @@ def process(cfg: DictConfig, data_dicts: DatasetDict) -> DatasetDict:
     return data_dicts
 
 
-def prepare(cfg: DictConfig) -> DatasetDictWrapper:
-    dataset_cfg = cfg["data"]["dataset"]
+def _location(cfg: DictConfig) -> str | None:
+    return cfg["data"]["dataset"]["save_path"]
 
-    location = dataset_cfg["save_path"]
+
+def _prepare(cfg: DictConfig) -> DatasetDict:
+    location = _location(cfg)
     if location is not None and Path(location).exists():
         loguru.logger.info("Loading dataset from disk.")
-        data_dicts = typing.cast(DatasetDict, datasets.load_from_disk(location))
+        return typing.cast(DatasetDict, datasets.load_from_disk(location))
     else:
         loguru.logger.info("Preparing datasets")
-        data_dicts = get(cfg)
-        data_dicts = process(cfg, data_dicts)
+        data_dicts = load(cfg)
+        return process(cfg, data_dicts)
 
-    if location is not None:
+
+def _save_if_path(cfg: DictConfig, data_dicts: DatasetDict) -> None:
+    if (location := _location(cfg)) is not None:
         loguru.logger.info("Saving dataset to disk.")
         data_dicts.save_to_disk(location)
 
+
+def prepare(cfg: DictConfig) -> DatasetDictWrapper:
+    data_dicts = _prepare(cfg)
+    _save_if_path(cfg, data_dicts)
     return DatasetDictWrapper(data_dicts)

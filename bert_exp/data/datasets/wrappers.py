@@ -4,6 +4,7 @@ from __future__ import annotations
 from abc import abstractmethod
 from typing import Dict, Generic, Protocol, Sized, TypeVar
 
+import loguru
 from datasets import DatasetDict
 from torch.utils.data import Dataset
 
@@ -50,6 +51,7 @@ class DatasetWrapper(Dataset, Sized, Generic[T]):
 
         super().__init__()
 
+        loguru.logger.debug(f"Wrapped: {seq}")
         self._seq = seq
 
     def __len__(self) -> int:
@@ -62,6 +64,8 @@ class DatasetWrapper(Dataset, Sized, Generic[T]):
 class DatasetDictWrapper(Dict[str, V]):
     def __init__(self, dd: DatasetDict) -> None:
         super().__init__(dd)
+
+        loguru.logger.debug(f"Wrapped: {dd}")
 
         # Additional checks that all keys are provided.
         for split in Splits:

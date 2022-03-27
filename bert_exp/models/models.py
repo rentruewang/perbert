@@ -12,7 +12,7 @@ from torch.optim import Adam, AdamW, Optimizer
 
 from bert_exp.bert import BatchEncoding, Config, ForMaskedLM, Output
 
-from .init import bert_init
+from . import init
 
 
 class OptimizerType(str, Enum):
@@ -32,13 +32,15 @@ class Model(LightningModule):
         else:
             bert_config = Config()
             lm = ForMaskedLM(bert_config)
-            lm.apply(bert_init(bert_config))
+            lm.apply(init.bert_init(bert_config))
 
         if not isinstance(lm, ForMaskedLM):
             raise ValueError(f"Model name: {model_name} is invalid.")
 
         self.lm = lm
         self.config = cfg
+
+        loguru.logger.debug(f"Model used: {self.lm}")
 
     @property
     def bert_config(self) -> Config:
@@ -80,4 +82,6 @@ class Model(LightningModule):
         else:
             raise ValueError(f"Optimizer type: {optim_type} not supported.")
 
-        return optim_cls(params=self.parameters(), lr=lr)
+        optimizer = optim_cls(params=self.parameters(), lr=lr)
+        loguru.logger.info(f"Optimizer: {optimizer}.")
+        return optimizer

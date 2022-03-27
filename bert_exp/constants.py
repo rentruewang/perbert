@@ -28,7 +28,7 @@ class Splits(StrEnum):
     VALIDATION = "validation"
 
 
-class MaskType(str, Enum):
+class MaskType(StrEnum):
     Token = "token"
     Attention = "attention"
 

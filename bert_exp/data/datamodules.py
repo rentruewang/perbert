@@ -68,7 +68,7 @@ class TextDataModule(LightningDataModule):
             assert Splits.TEST in self.datasets.keys(), self.datasets
 
     def _collate_hook(self, inputs: Any) -> Any:
-        loguru.logger.debug(inputs)
+        loguru.logger.trace(inputs)
         return self.collator(inputs, return_tensors="pt")
 
     def _dataloader(self, split: Splits) -> DataLoader:
