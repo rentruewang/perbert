@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from abc import abstractmethod
+from operator import truediv
 from typing import Any, Callable, Dict, List, Protocol, TypeVar
 
 import loguru
@@ -19,11 +20,12 @@ class Mappable(Protocol):
         self,
         function: Callable[[Any], Any],
         *,
-        batched: bool,
-        batch_size: int,
-        writer_batch_size: int,
-        num_proc: int,
-        desc: str,
+        batched: bool = False,
+        batch_size: int = 1000,
+        writer_batch_size: int = 1000,
+        num_proc: int | None = None,
+        load_from_cache_file: bool = False,
+        desc: str | None = None,
     ) -> Self:
         ...
 
@@ -32,10 +34,11 @@ class Mappable(Protocol):
         self,
         function: Callable[[Any], Any],
         *,
-        batched: bool,
-        batch_size: int,
-        writer_batch_size: int,
-        num_proc: int,
+        batched: bool = False,
+        batch_size: int = 1000,
+        writer_batch_size: int = 1000,
+        num_proc: int | None = None,
+        load_from_cache_file: bool = False,
         remove_columns: List[str] | None = None,
         desc: str | None = None,
     ) -> Self:
@@ -139,6 +142,7 @@ class TextMapper(Mapper[T]):
             batch_size=1,
             writer_batch_size=self.proc_batch,
             num_proc=self.num_workers,
+            load_from_cache_file=True,
             desc="Removing empty text sequences.",
         )
         loguru.logger.debug(mapper)
@@ -152,6 +156,7 @@ class TextMapper(Mapper[T]):
                 writer_batch_size=self.proc_batch,
                 num_proc=self.num_workers,
                 remove_columns=self.init_columns,
+                load_from_cache_file=True,
                 desc="Line by line tokenization.",
             )
         else:
@@ -163,6 +168,7 @@ class TextMapper(Mapper[T]):
                 writer_batch_size=self.proc_batch,
                 num_proc=self.num_workers,
                 remove_columns=self.init_columns,
+                load_from_cache_file=True,
                 desc="Joined lines tokenization.",
             )
 

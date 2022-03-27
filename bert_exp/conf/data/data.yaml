@@ -4,6 +4,7 @@ defaults:
 
 dataset:
   feature: text
+  save_path: null
 
 workers:
   dataset: 0

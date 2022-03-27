@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from enum import Enum
+from pathlib import Path
 from typing import Any, Dict
 
 import loguru
@@ -47,30 +48,26 @@ class Model(LightningModule):
     def forward(self, **kwargs: Any) -> Output:
         return self.lm(**kwargs)
 
-    def _step(
-        self, batch: BatchEncoding, batch_idx: int, name: str, loss_tag: str
-    ) -> Dict[str, Tensor]:
+    def _step(self, batch: BatchEncoding, batch_idx: int, name: str) -> Tensor:
         loguru.logger.trace(f"{name} step batch: {batch_idx}")
 
         output: Output = self(**batch)
 
-        assert isinstance(output.loss, Tensor)
-        out = {loss_tag: output.loss}
-        self.log(out)
-        return out
+        loss = output.loss
+        assert isinstance(loss, Tensor)
+        self.log(name=f"{name}/loss", value=loss.item())
+        return loss
 
-    def training_step(self, batch: BatchEncoding, batch_idx: int) -> Dict[str, Tensor]:
-        self._step(batch, batch_idx=batch_idx, name="Training", loss_tag="loss")
-
-    @no_grad()
-    def test_step(self, batch: BatchEncoding, batch_idx: int) -> Dict[str, Tensor]:
-        self._step(batch, batch_idx=batch_idx, name="Testing", loss_tag="test_loss")
+    def training_step(self, batch: BatchEncoding, batch_idx: int) -> Tensor:
+        return self._step(batch, batch_idx=batch_idx, name="train")
 
     @no_grad()
-    def validation_step(
-        self, batch: BatchEncoding, batch_idx: int
-    ) -> Dict[str, Tensor]:
-        self._step(batch, batch_idx=batch_idx, name="Validation", loss_tag="val_loss")
+    def test_step(self, batch: BatchEncoding, batch_idx: int) -> Tensor:
+        return self._step(batch, batch_idx=batch_idx, name="test")
+
+    @no_grad()
+    def validation_step(self, batch: BatchEncoding, batch_idx: int) -> Tensor:
+        return self._step(batch, batch_idx=batch_idx, name="validation")
 
     def configure_optimizers(self) -> Optimizer:
         model_cfg = self.config["model"]

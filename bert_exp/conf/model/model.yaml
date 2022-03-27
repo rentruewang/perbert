@@ -1,6 +1,6 @@
 defaults:
-  - _self_
   - lm: lm.yaml
+  - _self_
 
 path: null
 optimizer: adamw
