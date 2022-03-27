@@ -1,6 +1,6 @@
 # pyright: reportPrivateImportUsage=false
-from pathlib import Path
 import typing
+from pathlib import Path
 
 import datasets
 import loguru

@@ -2,7 +2,6 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from operator import truediv
 from typing import Any, Callable, Dict, List, Protocol, TypeVar
 
 import loguru
