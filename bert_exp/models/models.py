@@ -35,12 +35,12 @@ class Model(LightningModule):
             lm.apply(init.bert_init(bert_config))
 
         if not isinstance(lm, ForMaskedLM):
-            raise ValueError(f"Model name: {model_name} is invalid.")
+            raise ValueError("Model name: {} is invalid.", model_name)
 
         self.lm = lm
         self.config = cfg
 
-        loguru.logger.debug(f"Model used: {self.lm}")
+        loguru.logger.debug("Model used: {}", self.lm)
 
     @property
     def bert_config(self) -> Config:
@@ -50,7 +50,7 @@ class Model(LightningModule):
         return self.lm(**kwargs)
 
     def _step(self, batch: BatchEncoding, batch_idx: int, name: str) -> Tensor:
-        loguru.logger.trace(f"{name} step batch: {batch_idx}")
+        loguru.logger.trace("{} step batch: {}", name, batch_idx)
 
         output: Output = self(**batch)
 
@@ -83,5 +83,5 @@ class Model(LightningModule):
             raise ValueError(f"Optimizer type: {optim_type} not supported.")
 
         optimizer = optim_cls(params=self.parameters(), lr=lr)
-        loguru.logger.info(f"Optimizer: {optimizer}.")
+        loguru.logger.info("Optimizer: {}", optimizer)
         return optimizer

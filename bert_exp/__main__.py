@@ -17,11 +17,11 @@ def app(cfg: DictConfig) -> None:
 
     logger_cfg = cfg["loggers"]
     if level := logger_cfg["level"]:
-        loguru.logger.info(f"Logger level: {level}")
+        loguru.logger.info("Logger level: {}", level)
         loguru.logger.remove()
         loguru.logger.add(sys.stderr, level=level)
 
-    loguru.logger.info(f"Config used: {OmegaConf.to_yaml(cfg)}")
+    loguru.logger.info("Config used: {}", OmegaConf.to_yaml(cfg))
 
     trainer = Trainer(cfg)
 

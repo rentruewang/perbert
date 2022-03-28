@@ -19,9 +19,10 @@ def load(cfg: DictConfig) -> DatasetDict:
     loguru.logger.info("Fetching the dataset.")
 
     data_cfg = cfg["data"]
-    dicts = typing.cast(
-        DatasetDict, datasets.load_dataset(**data_cfg["dataset"]["args"])
-    )
+
+    args = data_cfg["dataset"]["args"]
+    loguru.logger.debug("Arguments used: {}", args)
+    dicts = typing.cast(DatasetDict, datasets.load_dataset(**args))
 
     if all(str(key) in dicts for key in Splits):
         return dicts
@@ -64,19 +65,18 @@ def _location(cfg: DictConfig) -> str | None:
 
 
 def _prepare(cfg: DictConfig) -> DatasetDict:
-    location = _location(cfg)
-    if location is not None and Path(location).exists():
-        loguru.logger.info("Loading dataset from disk.")
+    if (location := _location(cfg)) and Path(location).exists():
+        loguru.logger.info("Loading dataset from {}.", location)
         return typing.cast(DatasetDict, datasets.load_from_disk(location))
     else:
-        loguru.logger.info("Preparing datasets")
+        loguru.logger.info("Preparing datasets.")
         data_dicts = load(cfg)
         return process(cfg, data_dicts)
 
 
 def _save_if_path(cfg: DictConfig, data_dicts: DatasetDict) -> None:
-    if (location := _location(cfg)) is not None:
-        loguru.logger.info("Saving dataset to disk.")
+    if (location := _location(cfg)) and not Path(location).exists():
+        loguru.logger.info("Saving dataset to {}.", location)
         data_dicts.save_to_disk(location)
 
 

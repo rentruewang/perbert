@@ -55,7 +55,7 @@ class TextDataModule(LightningDataModule):
         self._prepare_data()
 
     def setup(self, stage: str | LightningStage) -> None:
-        loguru.logger.debug(f"Setting up stage: {stage}.")
+        loguru.logger.debug("Setting up stage: {}.", stage)
         self.datasets = self._prepare_data()
 
         stage = LightningStage(stage)
@@ -73,7 +73,7 @@ class TextDataModule(LightningDataModule):
 
     def _dataloader(self, split: Splits) -> DataLoader:
         dataset = self.datasets[split]
-        loguru.logger.debug(f"Length of {split} dataset: {len(dataset)}")
+        loguru.logger.debug("Length of {} dataset: {}", split, len(dataset))
 
         return DataLoader(
             dataset,

@@ -51,7 +51,7 @@ class DatasetWrapper(Dataset, Sized, Generic[T]):
 
         super().__init__()
 
-        loguru.logger.debug(f"Wrapped: {seq}")
+        loguru.logger.debug("Wrapped: {}", seq)
         self._seq = seq
 
     def __len__(self) -> int:
@@ -65,12 +65,12 @@ class DatasetDictWrapper(Dict[str, V]):
     def __init__(self, dd: DatasetDict) -> None:
         super().__init__(dd)
 
-        loguru.logger.debug(f"Wrapped: {dd}")
+        loguru.logger.debug("Wrapped: {}", dd)
 
         # Additional checks that all keys are provided.
         for split in Splits:
             if str(split) not in dd:
-                raise KeyError(f"Key {split} not found in DatasetDict")
+                raise KeyError("Key {} not found in DatasetDict.", split)
 
     def __getitem__(self, key: str | Splits) -> V:
         if isinstance(key, Splits):

@@ -23,7 +23,7 @@ def bert_init(cfg: Config) -> Callable[[Module], None]:
 
 
 def linear_init(layer: Linear, cfg: Config) -> None:
-    loguru.logger.trace(f"Calling linear_init on {layer}")
+    loguru.logger.trace("Calling linear_init on {}", layer)
 
     init.normal_(layer.weight, mean=0.0, std=cfg.initializer_range)
 
@@ -33,13 +33,13 @@ def linear_init(layer: Linear, cfg: Config) -> None:
 
 def layernorm_init(layer: LayerNorm, cfg: Config) -> None:
     del cfg
-    loguru.logger.trace(f"Calling linearnorm_init on {layer}")
+    loguru.logger.trace("Calling linearnorm_init on {}", layer)
 
     init.ones_(layer.weight)
     init.zeros_(layer.bias)
 
 
 def emb_init(layer: Embedding, cfg: Config) -> None:
-    loguru.logger.trace(f"Calling emb_init on {layer}")
+    loguru.logger.trace("Calling emb_init on {}", layer)
 
     init.normal_(layer.weight, mean=0.0, std=cfg.initializer_range)
