@@ -29,6 +29,10 @@ def app(cfg: DictConfig) -> None:
 
     datamodule = TextDataModule(cfg)
 
+    # Tuning to fine the best size.
+    if cfg["tune"]:
+        trainer.tune(model=model, datamodule=datamodule)
+
     trainer.fit(model=model, datamodule=datamodule)
 
 

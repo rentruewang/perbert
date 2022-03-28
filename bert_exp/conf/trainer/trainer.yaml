@@ -1,5 +1,6 @@
 accelerator: auto
 accumulate_grad_batches: 1
+auto_lr_find: true
 auto_scale_batch_size: binsearch
 auto_select_gpus: true
 default_root_dir: "."
@@ -11,6 +12,8 @@ enable_model_summary: true
 enable_progress_bar: true
 fast_dev_run: false
 gradient_clip_val: 1
+max_epochs: 1
+min_epochs: null
 max_steps: 100_000
 min_steps: null
 num_nodes: 1
