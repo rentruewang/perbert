@@ -3,5 +3,6 @@ defaults:
   - _self_
 
 path: null
+init: true
 optimizer: adamw
 lr: 1e-5

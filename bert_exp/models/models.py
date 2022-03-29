@@ -32,7 +32,9 @@ class Model(LightningModule):
         else:
             bert_config = Config()
             lm = ForMaskedLM(bert_config)
-            lm.apply(init.bert_init(bert_config))
+
+        if model_cfg["init"]:
+            lm.apply(init.bert_init(lm.config))
 
         if not isinstance(lm, ForMaskedLM):
             raise ValueError("Model name: {} is invalid.", model_name)
