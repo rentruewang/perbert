@@ -7,9 +7,9 @@ import loguru
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
+from transformers import AutoTokenizer, BertConfig, DataCollatorForLanguageModeling
 
 from bert_exp import constants
-from bert_exp.bert import AutoTokenizer, Config, DataCollatorForLanguageModeling
 from bert_exp.constants import LightningStage, Splits
 
 from . import datasets
@@ -44,7 +44,7 @@ class TextDataModule(LightningDataModule):
             pad_to_multiple_of=self.max_length,
         )
 
-        self.vocab_size: int = Config().vocab_size
+        self.vocab_size: int = BertConfig().vocab_size
         self.datasets = {}
 
     def _prepare_data(self) -> DatasetDictWrapper:

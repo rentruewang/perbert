@@ -1,12 +1,12 @@
+# pyright: reportPrivateImportUsage=false
 from typing import Callable
 
 import loguru
 from torch.nn import Embedding, LayerNorm, Linear, Module, init
+from transformers import BertConfig
 
-from bert_exp.bert import Config
 
-
-def bert_init(cfg: Config) -> Callable[[Module], None]:
+def bert_init(cfg: BertConfig) -> Callable[[Module], None]:
     loguru.logger.info("Creating the initialization function.")
 
     def init(layer: Module) -> None:
@@ -22,7 +22,7 @@ def bert_init(cfg: Config) -> Callable[[Module], None]:
     return init
 
 
-def linear_init(layer: Linear, cfg: Config) -> None:
+def linear_init(layer: Linear, cfg: BertConfig) -> None:
     loguru.logger.trace("Calling linear_init on {}", layer)
 
     init.normal_(layer.weight, mean=0.0, std=cfg.initializer_range)
@@ -31,7 +31,7 @@ def linear_init(layer: Linear, cfg: Config) -> None:
         init.zeros_(bias)
 
 
-def layernorm_init(layer: LayerNorm, cfg: Config) -> None:
+def layernorm_init(layer: LayerNorm, cfg: BertConfig) -> None:
     del cfg
     loguru.logger.trace("Calling linearnorm_init on {}", layer)
 
@@ -39,7 +39,7 @@ def layernorm_init(layer: LayerNorm, cfg: Config) -> None:
     init.zeros_(layer.bias)
 
 
-def emb_init(layer: Embedding, cfg: Config) -> None:
+def emb_init(layer: Embedding, cfg: BertConfig) -> None:
     loguru.logger.trace("Calling emb_init on {}", layer)
 
     init.normal_(layer.weight, mean=0.0, std=cfg.initializer_range)

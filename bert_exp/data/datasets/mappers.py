@@ -8,9 +8,8 @@ import loguru
 import numpy as np
 from numpy import ndarray
 from omegaconf import DictConfig
+from transformers import AutoTokenizer, BatchEncoding
 from typing_extensions import Self
-
-from bert_exp.bert import AutoTokenizer, BatchEncoding
 
 
 class Mappable(Protocol):

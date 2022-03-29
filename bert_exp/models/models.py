@@ -1,16 +1,18 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
+import typing
 from enum import Enum
-from typing import Any
+from typing import Any, Type
 
 import loguru
 from omegaconf import DictConfig
 from pytorch_lightning import LightningModule
 from torch import Tensor, no_grad
+from torch.nn import Module
 from torch.optim import Adam, AdamW, Optimizer
-
-from bert_exp.bert import BatchEncoding, Config, ForMaskedLM, Output
+from transformers import BatchEncoding, BertConfig, BertForMaskedLM
+from transformers.models.bert.modeling_bert import BertOutput, BertPreTrainedModel
 
 from . import init
 
@@ -27,17 +29,19 @@ class Model(LightningModule):
         model_cfg = cfg["model"]
         model_name = model_cfg["path"]
 
+        mlm_cls = typing.cast(Type[BertPreTrainedModel], BertForMaskedLM)
         if model_name is not None:
-            lm = ForMaskedLM.from_pretrained(model_name)
+            lm: Any = mlm_cls.from_pretrained(model_name)
         else:
-            bert_config = Config()
-            lm = ForMaskedLM(bert_config)
+            bert_config = BertConfig()
+            lm: Any = mlm_cls(bert_config)
+
+        assert lm is not None
+
+        lm = typing.cast(Module, lm)
 
         if model_cfg["init"]:
             lm.apply(init.bert_init(lm.config))
-
-        if not isinstance(lm, ForMaskedLM):
-            raise ValueError("Model name: {} is invalid.", model_name)
 
         self.lm = lm
         self.config = cfg
@@ -45,16 +49,16 @@ class Model(LightningModule):
         loguru.logger.debug("Model used: {}", self.lm)
 
     @property
-    def bert_config(self) -> Config:
+    def bert_config(self) -> BertConfig:
         return self.lm.bert.config
 
-    def forward(self, **kwargs: Any) -> Output:
+    def forward(self, **kwargs: Any) -> BertOutput:
         return self.lm(**kwargs)
 
     def _step(self, batch: BatchEncoding, batch_idx: int, name: str) -> Tensor:
         loguru.logger.trace("{} step batch: {}", name, batch_idx)
 
-        output: Output = self(**batch)
+        output: BertOutput = self(**batch)
 
         loss = output.loss
         assert isinstance(loss, Tensor)
