@@ -5,10 +5,9 @@ from abc import abstractmethod
 from typing import Dict, Generic, Protocol, Sized, TypeVar
 
 import loguru
+from bert_exp.constants import Splits
 from datasets import DatasetDict
 from torch.utils.data import Dataset
-
-from bert_exp.constants import Splits
 
 T = TypeVar("T")
 "T is a invariant type."

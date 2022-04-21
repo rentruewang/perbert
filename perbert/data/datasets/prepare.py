@@ -6,10 +6,9 @@ from pathlib import Path
 
 import datasets
 import loguru
+from bert_exp.constants import Splits
 from datasets import DatasetDict
 from omegaconf import DictConfig
-
-from bert_exp.constants import Splits
 
 from .mappers import TextMapper
 from .wrappers import DatasetDictWrapper
