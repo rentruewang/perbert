@@ -1,5 +1,5 @@
 [tool.poetry]
-name = "bert_exp"
+name = "perbert"
 version = "0.1.0"
 description = "Just my experiments on BERT related stuff."
 authors = ["RenChu Wang <patrick1031wang@gmail.com>"]
@@ -38,7 +38,7 @@ requires = ["poetry-core>=1.0.0"]
 build-backend = "poetry.core.masonry.api"
 
 [tool.pyright]
-include = ["bert_exp"]
+include = ["perbert"]
 exclude = [
     "**/node_modules",
     "**/__pycache__",
