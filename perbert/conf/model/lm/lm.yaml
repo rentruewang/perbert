@@ -3,3 +3,4 @@ mask_prob: 0.15
 random: 0.1
 unchanged: 0.1
 collator: token
+decay: 1

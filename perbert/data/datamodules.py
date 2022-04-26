@@ -18,7 +18,7 @@ from perbert import constants
 from perbert.constants import CollatorType, LightningStage, Splits
 
 from . import datasets
-from .collators import Collator, WrappedCollator
+from .collators import Collator, HuggingfaceCollator, DecayCollator
 from .datasets import DatasetDictWrapper
 
 
@@ -72,31 +72,29 @@ class TextDataModule(LightningDataModule):
         collator_type = CollatorType(self.cfg["model"]["lm"]["collator"])
 
         if collator_type == CollatorType.Token:
-            return WrappedCollator(
-                DataCollatorForLanguageModeling(
-                    tokenizer=tokenizer,
-                    mlm=True,
-                    mlm_probability=mask_prob,
-                    pad_to_multiple_of=self.max_length,
-                    return_tensors="pt",
-                )
+            collator_cls = DataCollatorForLanguageModeling
+        elif collator_type == CollatorType.WholeWord:
+            collator_cls = DataCollatorForWholeWordMask
+        else:
+            raise ValueError(f"Collator type: {collator_type} not supported.")
+
+        if decay := self.cfg["model"]["lm"]["decay"] == 1:
+            return HuggingfaceCollator(
+                klass=collator_cls,
+                tokenizer=tokenizer,
+                mask_prob=mask_prob,
+                max_length=self.max_length,
             )
-
-        if collator_type == CollatorType.WholeWord:
-            return WrappedCollator(
-                DataCollatorForWholeWordMask(
-                    tokenizer=tokenizer,
-                    mlm=True,
-                    mlm_probability=mask_prob,
-                    pad_to_multiple_of=self.max_length,
-                    return_tensors="pt",
-                )
+        elif 0 < decay < 1:
+            return DecayCollator(
+                klass=collator_cls,
+                tokenizer=tokenizer,
+                mask_prob=mask_prob,
+                max_length=self.max_length,
+                decay=decay,
             )
-
-        if collator_type == CollatorType.Decay:
-            raise NotImplementedError
-
-        raise ValueError("This should be unreachable")
+        else:
+            raise ValueError(f"Decay rate: {decay} is invalid.")
 
     def _collate_hook(self, inputs: Any) -> Any:
         loguru.logger.trace(inputs)

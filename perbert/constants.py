@@ -31,7 +31,6 @@ class Splits(StrEnum):
 class CollatorType(StrEnum):
     Token = "token"
     WholeWord = "wholeword"
-    Decay = "decay"
 
 
 if (_cpus := os.cpu_count()) is not None:
