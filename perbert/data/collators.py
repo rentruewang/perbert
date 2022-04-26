@@ -1,6 +1,5 @@
 from abc import abstractmethod
-from typing import Any, Dict, List, Protocol, Sequence
-from transformers import BatchEncoding
+from typing import Any, Dict, List, Protocol
 
 
 class Collator(Protocol):

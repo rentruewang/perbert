@@ -15,7 +15,7 @@ from transformers import (
 )
 
 from perbert import constants
-from perbert.constants import LightningStage, Splits, CollatorType
+from perbert.constants import CollatorType, LightningStage, Splits
 
 from . import datasets
 from .collators import Collator
@@ -88,7 +88,6 @@ class TextDataModule(LightningDataModule):
                 pad_to_multiple_of=self.max_length,
                 return_tensors="pt",
             )
-        
 
     def _collate_hook(self, inputs: Any) -> Any:
         loguru.logger.trace(inputs)
