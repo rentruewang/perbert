@@ -1,10 +1,12 @@
+# pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
 from abc import abstractmethod
 from typing import Any, Dict, List, Protocol, Type
 
 from transformers import DataCollatorForLanguageModeling, DataCollatorForWholeWordMask
-from transformers.tokenization_utils import PreTrainedTokenizer, PreTrainedTokenizerFast
+from transformers.tokenization_utils import PreTrainedTokenizer
+from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
 
 class Collator(Protocol):
