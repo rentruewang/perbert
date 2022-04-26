@@ -28,9 +28,10 @@ class Splits(StrEnum):
     VALIDATION = "validation"
 
 
-class MaskType(StrEnum):
+class CollatorType(StrEnum):
     Token = "token"
-    Attention = "attention"
+    WholeWord = "wholeword"
+    Decay = "decay"
 
 
 if (_cpus := os.cpu_count()) is not None:

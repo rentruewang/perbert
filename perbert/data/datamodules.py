@@ -7,12 +7,18 @@ import loguru
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
-from transformers import AutoTokenizer, BertConfig, DataCollatorForLanguageModeling
+from transformers import (
+    AutoTokenizer,
+    BertConfig,
+    DataCollatorForLanguageModeling,
+    DataCollatorForWholeWordMask,
+)
 
 from perbert import constants
-from perbert.constants import LightningStage, Splits
+from perbert.constants import LightningStage, Splits, CollatorType
 
 from . import datasets
+from .collators import Collator
 from .datasets import DatasetDictWrapper
 
 
@@ -21,28 +27,19 @@ class TextDataModule(LightningDataModule):
         super().__init__()
 
         self.cfg = cfg
-        data_cfg = self.cfg["data"]
 
-        self.batch_size = data_cfg["batch"]["data"]
-        self.pin_memory = data_cfg["pin_memory"]
-        self.max_length = data_cfg["max_length"]
+        self.batch_size = self.cfg["data"]["batch"]["data"]
+        self.pin_memory = self.cfg["data"]["pin_memory"]
+        self.max_length = self.cfg["data"]["max_length"]
 
-        if (num_workers := data_cfg["workers"]["dataloader"]) > 0:
+        if (num_workers := self.cfg["data"]["workers"]["dataloader"]) > 0:
             self.num_workers = num_workers
         else:
             self.num_workers = constants.NUM_CPUS
 
-        self.feature = data_cfg["dataset"]["feature"]
+        self.feature = self.cfg["data"]["dataset"]["feature"]
 
-        tokenizer = AutoTokenizer.from_pretrained(data_cfg["tokenizer"])
-        lm_cfg = cfg["model"]["lm"]
-        mask_prob = lm_cfg["mask_prob"]
-        self.collator = DataCollatorForLanguageModeling(
-            tokenizer=tokenizer,
-            mlm=True,
-            mlm_probability=mask_prob,
-            pad_to_multiple_of=self.max_length,
-        )
+        self.collator: Collator = self._init_collator()
 
         self.vocab_size: int = BertConfig().vocab_size
         self.datasets = {}
@@ -67,9 +64,35 @@ class TextDataModule(LightningDataModule):
         if stage == LightningStage.TEST:
             assert Splits.TEST in self.datasets.keys(), self.datasets
 
+    def _init_collator(self) -> Collator:
+
+        tokenizer = AutoTokenizer.from_pretrained(self.cfg["data"]["tokenizer"])
+        mask_prob = self.cfg["model"]["lm"]["mask_prob"]
+
+        collator_type = CollatorType(self.cfg["model"]["lm"]["collator"])
+
+        if collator_type == CollatorType.Token:
+            return DataCollatorForLanguageModeling(
+                tokenizer=tokenizer,
+                mlm=True,
+                mlm_probability=mask_prob,
+                pad_to_multiple_of=self.max_length,
+                return_tensors="pt",
+            )
+
+        if collator_type == CollatorType.WholeWord:
+            return DataCollatorForWholeWordMask(
+                tokenizer=tokenizer,
+                mlm=True,
+                mlm_probability=mask_prob,
+                pad_to_multiple_of=self.max_length,
+                return_tensors="pt",
+            )
+        
+
     def _collate_hook(self, inputs: Any) -> Any:
         loguru.logger.trace(inputs)
-        return self.collator(inputs, return_tensors="pt")
+        return self.collator(inputs)
 
     def _dataloader(self, split: Splits) -> DataLoader:
         dataset = self.datasets[split]
