@@ -18,7 +18,7 @@ from perbert import constants
 from perbert.constants import CollatorType, LightningStage, Splits
 
 from . import datasets
-from .collators import Collator, HuggingfaceCollator, DecayCollator
+from .collators import Collator, DecayCollator, HuggingfaceCollator
 from .datasets import DatasetDictWrapper
 
 

@@ -1,16 +1,9 @@
 from __future__ import annotations
 
 from abc import abstractmethod
-from typing import Any, Callable, Dict, List, Protocol, Type
+from typing import Any, Dict, List, Protocol, Type
 
-from omegaconf import DictConfig
-from transformers import (
-    AutoTokenizer,
-    BertConfig,
-    DataCollatorForLanguageModeling,
-    DataCollatorForWholeWordMask,
-)
-from transformers.data.data_collator import DataCollatorMixin
+from transformers import DataCollatorForLanguageModeling, DataCollatorForWholeWordMask
 from transformers.tokenization_utils import PreTrainedTokenizer, PreTrainedTokenizerFast
 
 
