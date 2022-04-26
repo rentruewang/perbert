@@ -18,7 +18,7 @@ from perbert import constants
 from perbert.constants import CollatorType, LightningStage, Splits
 
 from . import datasets
-from .collators import Collator
+from .collators import Collator, WrappedCollator
 from .datasets import DatasetDictWrapper
 
 
@@ -72,22 +72,31 @@ class TextDataModule(LightningDataModule):
         collator_type = CollatorType(self.cfg["model"]["lm"]["collator"])
 
         if collator_type == CollatorType.Token:
-            return DataCollatorForLanguageModeling(
-                tokenizer=tokenizer,
-                mlm=True,
-                mlm_probability=mask_prob,
-                pad_to_multiple_of=self.max_length,
-                return_tensors="pt",
+            return WrappedCollator(
+                DataCollatorForLanguageModeling(
+                    tokenizer=tokenizer,
+                    mlm=True,
+                    mlm_probability=mask_prob,
+                    pad_to_multiple_of=self.max_length,
+                    return_tensors="pt",
+                )
             )
 
         if collator_type == CollatorType.WholeWord:
-            return DataCollatorForWholeWordMask(
-                tokenizer=tokenizer,
-                mlm=True,
-                mlm_probability=mask_prob,
-                pad_to_multiple_of=self.max_length,
-                return_tensors="pt",
+            return WrappedCollator(
+                DataCollatorForWholeWordMask(
+                    tokenizer=tokenizer,
+                    mlm=True,
+                    mlm_probability=mask_prob,
+                    pad_to_multiple_of=self.max_length,
+                    return_tensors="pt",
+                )
             )
+
+        if collator_type == CollatorType.Decay:
+            raise NotImplementedError
+
+        raise ValueError("This should be unreachable")
 
     def _collate_hook(self, inputs: Any) -> Any:
         loguru.logger.trace(inputs)

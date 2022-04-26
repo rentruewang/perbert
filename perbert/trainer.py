@@ -36,8 +36,8 @@ class Trainer(PLTrainer):
 
         callbacks = []
 
-        if callback_cfg["early_stopping"]:
-            callbacks.append(EarlyStopping())
+        if monitor := callback_cfg["early_stopping"]:
+            callbacks.append(EarlyStopping(monitor=monitor))
 
         if callback_cfg["device_stats"]:
             callbacks.append(DeviceStatsMonitor())
