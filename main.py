@@ -5,9 +5,9 @@ import pytorch_lightning as pl
 from hydra import main
 from omegaconf import DictConfig, OmegaConf
 
-from .data import TextDataModule
-from .models import Model
-from .trainer import Trainer
+from perbert.data import TextDataModule
+from perbert.models import Model
+from perbert.trainer import Trainer
 
 
 @main(config_path="conf", config_name="main")
