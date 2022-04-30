@@ -2,9 +2,20 @@ defaults:
   - data: data.yaml
   - trainer: trainer.yaml
   - model: model.yaml
-  - callbacks: callbacks.yaml
   - loggers: loggers.yaml
   - _self_
+
+callbacks:
+  checkpoint: null
+  device_stats: false
+  early_stopping: loss
+  rich: true
+  table_metrics: false
+
+stages:
+  eval_only: false
+  pretrain: true
+  finetune: true
 
 seed: 42
 tune: false

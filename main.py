@@ -24,16 +24,25 @@ def app(cfg: DictConfig) -> None:
     loguru.logger.info("Config used: {}", OmegaConf.to_yaml(cfg))
 
     trainer = Trainer(cfg)
-
     model = Model(cfg)
-
-    datamodule = TextDataModule(cfg)
 
     # Tuning to fine the best size.
     if cfg["tune"]:
         trainer.tune(model=model, datamodule=datamodule)
 
-    trainer.fit(model=model, datamodule=datamodule)
+    stage_cfg = cfg["stages"]
+
+    if stage_cfg["eval_only"]:
+        datamodule = TextDataModule(cfg)
+        trainer.test(model=model, datamodule=datamodule)
+        return
+
+    if stage_cfg["pretrain"]:
+        datamodule = TextDataModule(cfg)
+        trainer.fit(model=model, datamodule=datamodule)
+
+    if stage_cfg["finetune"]:
+        raise NotImplementedError
 
 
 if __name__ == "__main__":

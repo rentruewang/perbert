@@ -1,5 +1,0 @@
-checkpoint: null
-device_stats: false
-early_stopping: loss
-rich: true
-table_metrics: false

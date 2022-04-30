@@ -2,6 +2,9 @@ defaults:
   - lm: lm.yaml
   - _self_
 
+metrics:
+  accuracy: true
+
 path: null
 init: true
 optimizer: adamw

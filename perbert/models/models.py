@@ -3,7 +3,8 @@ from __future__ import annotations
 
 import typing
 from enum import Enum
-from typing import Any, Type
+from operator import truediv
+from typing import Any, Dict, List, Type
 
 import loguru
 from omegaconf import DictConfig
@@ -11,6 +12,7 @@ from pytorch_lightning import LightningModule
 from torch import Tensor, no_grad
 from torch.nn import Module
 from torch.optim import Adam, AdamW, Optimizer
+from torchmetrics import Accuracy, Metric
 from transformers import BatchEncoding, BertConfig, BertForMaskedLM
 from transformers.models.bert.modeling_bert import BertOutput, BertPreTrainedModel
 
@@ -44,7 +46,9 @@ class Model(LightningModule):
             lm.apply(init.bert_init(lm.config))
 
         self.lm = lm
-        self.config = cfg
+        self.cfg = cfg
+
+        self.metrics = self.configure_metrics()
 
         loguru.logger.debug("Model used: {}", self.lm)
 
@@ -59,10 +63,16 @@ class Model(LightningModule):
         loguru.logger.trace("{} step batch: {}", name, batch_idx)
 
         output: BertOutput = self(**batch)
+        loss = typing.cast(Tensor, output.loss)
+        self.log(name=f"{name}/loss", value=loss.item(), on_step=True)
 
-        loss = output.loss
-        assert isinstance(loss, Tensor)
-        self.log(name=f"{name}/loss", value=loss.item())
+        logits = output.logits
+        input_ids = batch.input_ids
+
+        for (metric, func) in self.metrics.items():
+            result = func(logits, input_ids)
+            self.log(name=f"{name}/{metric}", value=result, on_step=True)
+
         return loss
 
     def training_step(self, batch: BatchEncoding, batch_idx: int) -> Tensor:
@@ -77,7 +87,7 @@ class Model(LightningModule):
         return self._step(batch, batch_idx=batch_idx, name="validation")
 
     def configure_optimizers(self) -> Optimizer:
-        model_cfg = self.config["model"]
+        model_cfg = self.cfg["model"]
         optim_type = OptimizerType(model_cfg["optimizer"])
         lr = model_cfg["lr"]
 
@@ -91,3 +101,14 @@ class Model(LightningModule):
         optimizer = optim_cls(params=self.parameters(), lr=lr)
         loguru.logger.info("Optimizer: {}", optimizer)
         return optimizer
+
+    def configure_metrics(self) -> Dict[str, Metric]:
+        metrics = {}
+
+        met_cfg = self.cfg["model"]["metrics"]
+
+        if met_cfg["accuracy"]:
+            loguru.logger.info("Accuracy metric is used.")
+            self.metrics["acc"] = Accuracy()
+
+        return metrics
