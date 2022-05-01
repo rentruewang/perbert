@@ -78,7 +78,10 @@ class TextDataModule(LightningDataModule):
         else:
             raise ValueError(f"Collator type: {collator_type} not supported.")
 
-        if decay := self.cfg["model"]["lm"]["decay"] == 1:
+
+        decay = self.cfg["model"]["lm"]["decay"]
+
+        if decay == 1:
             return HuggingfaceCollator(
                 klass=collator_cls,
                 tokenizer=tokenizer,
@@ -95,6 +98,7 @@ class TextDataModule(LightningDataModule):
             )
         else:
             raise ValueError(f"Decay rate: {decay} is invalid.")
+
 
     def _collate_hook(self, inputs: Any) -> Any:
         loguru.logger.trace(inputs)

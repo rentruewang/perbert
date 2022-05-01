@@ -25,13 +25,13 @@ class Trainer(PLTrainer):
         self.cfg = cfg
 
         super().__init__(
-            callbacks=self._callbacks,
-            logger=self._loggers,
+            callbacks=self.__callbacks,
+            logger=self.__loggers,
             **self.cfg["trainer"],
         )
 
     @property
-    def _callbacks(self) -> List[Callback]:
+    def __callbacks(self) -> List[Callback]:
         callback_cfg = self.cfg["callbacks"]
 
         callbacks = []
@@ -51,7 +51,7 @@ class Trainer(PLTrainer):
         return callbacks
 
     @property
-    def _loggers(self) -> List[LightningLoggerBase]:
+    def __loggers(self) -> List[LightningLoggerBase]:
         logger_cfg = self.cfg["loggers"]
 
         loggers = []
@@ -59,7 +59,7 @@ class Trainer(PLTrainer):
         if path := logger_cfg["tensorboard"]:
             if isinstance(path, str):
                 tb_logger = TensorBoardLogger(save_dir=path)
-            elif isinstance(path, dict):
+            elif isinstance(path, DictConfig):
                 tb_logger = TensorBoardLogger(**path)
             else:
                 tb_logger = TensorBoardLogger(save_dir="tensorboard")
@@ -68,7 +68,7 @@ class Trainer(PLTrainer):
         if path := logger_cfg["wandb"]:
             if isinstance(path, str):
                 wandb_logger = WandbLogger(name=path)
-            elif isinstance(path, dict):
+            elif isinstance(path, DictConfig):
                 wandb_logger = WandbLogger(**path)
             else:
                 wandb_logger = WandbLogger()

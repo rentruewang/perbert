@@ -9,3 +9,13 @@ path: null
 init: true
 optimizer: adamw
 lr: 1e-5
+weight_decay: 0.01
+lr_scheduler_type: constant
+warmup_steps: 0
+warmup_ratio: null
+length_scheduler:
+  min_length: 128
+  algo: constant
+  step_interval: 10000
+  step_size: 2.0
+

@@ -31,15 +31,16 @@ def app(cfg: DictConfig) -> None:
         trainer.tune(model=model, datamodule=datamodule)
 
     stage_cfg = cfg["stages"]
+    ckpt = cfg["ckpt"]
 
     if stage_cfg["eval_only"]:
         datamodule = TextDataModule(cfg)
-        trainer.test(model=model, datamodule=datamodule)
+        trainer.test(model=model, datamodule=datamodule, ckpt_path=ckpt)
         return
 
     if stage_cfg["pretrain"]:
         datamodule = TextDataModule(cfg)
-        trainer.fit(model=model, datamodule=datamodule)
+        trainer.fit(model=model, datamodule=datamodule, ckpt_path=ckpt)
 
     if stage_cfg["finetune"]:
         raise NotImplementedError

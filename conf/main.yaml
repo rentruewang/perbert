@@ -8,14 +8,15 @@ defaults:
 callbacks:
   checkpoint: null
   device_stats: false
-  early_stopping: loss
+  early_stopping: null
   rich: true
   table_metrics: false
 
 stages:
   eval_only: false
   pretrain: true
-  finetune: true
+  finetune: false
 
 seed: 42
 tune: false
+ckpt: null
