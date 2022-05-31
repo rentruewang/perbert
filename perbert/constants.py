@@ -33,6 +33,12 @@ class CollatorType(StrEnum):
     WholeWord = "wholeword"
 
 
+class SchedulerAlgo(StrEnum):
+    Const = "constant"
+    Bert = "bert"
+    Step = "step"
+
+
 if (_cpus := os.cpu_count()) is not None:
     NUM_CPUS = _cpus
 else:

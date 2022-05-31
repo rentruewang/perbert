@@ -16,10 +16,10 @@ from torch.optim.lr_scheduler import LambdaLR
 from torchmetrics import Accuracy, Metric
 from transformers import BatchEncoding, BertConfig, BertForMaskedLM
 from transformers.models.bert.modeling_bert import BertOutput, BertPreTrainedModel
-from transformers.optimization import get_scheduler
+from transformers import optimization
 
 from . import init
-from .length_schedule import LengthScheduler
+from .length_schedulers import LengthScheduler
 
 
 class OptimizerType(str, Enum):
@@ -56,13 +56,6 @@ class Model(LightningModule):
 
         loguru.logger.debug("Model used: {}", self.lm)
 
-    def _init_length_scheduler(self):
-        self.length_scheduler = LengthScheduler(
-            max_length=self.cfg["data"]["max_length"],
-            total_steps=self.trainer.estimated_stepping_batches,
-            **self.cfg["model"]["length_scheduler"],
-        )
-
     @property
     def bert_config(self) -> BertConfig:
         return self.lm.bert.config
@@ -77,8 +70,10 @@ class Model(LightningModule):
         loss = typing.cast(Tensor, output.loss)
         self.log(name=f"{name}/loss", value=loss.item(), on_step=True)
 
-        size = output.logits.size(0) * output.logits.size(1)
-        logits = output.logits.reshape(size, output.logits.size(2))
+        logits = output.logits
+        assert isinstance(logits, Tensor)
+        size = logits.size(0) * logits.size(1)
+        logits = logits.reshape(size, logits.size(2))
         labels = batch.labels.view(-1)
 
         for (metric, func) in self.metrics.items():
@@ -105,19 +100,9 @@ class Model(LightningModule):
         return self._step(batch, batch_idx=batch_idx, name="validation")
 
     def configure_optimizers(self) -> Tuple[List[Optimizer], List[LambdaLR]]:
-        self._init_length_scheduler()
         model_cfg = self.cfg["model"]
-        optim_type = OptimizerType(model_cfg["optimizer"])
-        lr = model_cfg["lr"]
-        weight_decay = model_cfg["weight_decay"]
-        total_steps = self.trainer.estimated_stepping_batches
-        lr_scheduler_type = model_cfg["lr_scheduler_type"]
-        warmup_steps = (
-            int(total_steps * model_cfg["warmup_ratio"])
-            if model_cfg["warmup_ratio"]
-            else model_cfg["warmup_steps"]
-        )
 
+        optim_type = OptimizerType(model_cfg["optimizer"])
         if optim_type == OptimizerType.Adam:
             optim_cls = Adam
         elif optim_type == OptimizerType.AdamW:
@@ -125,17 +110,34 @@ class Model(LightningModule):
         else:
             raise ValueError(f"Optimizer type: {optim_type} not supported.")
 
+        weight_decay = model_cfg["weight_decay"]
+        lr = model_cfg["lr"]
         optimizer = optim_cls(
             params=self.parameters(), lr=lr, weight_decay=weight_decay
         )
-        scheduler = get_scheduler(
+
+        assert self.trainer is not None
+        total_steps = int(self.trainer.estimated_stepping_batches)
+        lr_scheduler_type = model_cfg["lr_scheduler_type"]
+        warmup_steps = (
+            int(total_steps * model_cfg["warmup_ratio"])
+            if model_cfg["warmup_ratio"]
+            else model_cfg["warmup_steps"]
+        )
+
+        self.length_scheduler = LengthScheduler(
+            max_length=self.cfg["data"]["max_length"],
+            total_steps=total_steps,
+            **self.cfg["model"]["length_scheduler"],
+        )
+        scheduler = optimization.get_scheduler(
             lr_scheduler_type,
             optimizer=optimizer,
             num_warmup_steps=warmup_steps,
             num_training_steps=total_steps,
         )
         loguru.logger.info("Optimizer: {}", optimizer)
-        return [optimizer], [scheduler]
+        return ([optimizer], [scheduler])
 
     def configure_metrics(self) -> Dict[str, Metric]:
         metrics = {}

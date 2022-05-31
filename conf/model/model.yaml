@@ -18,4 +18,3 @@ length_scheduler:
   algo: constant
   step_interval: 10000
   step_size: 2.0
-
