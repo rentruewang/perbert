@@ -7,9 +7,12 @@ import loguru
 from omegaconf import DictConfig
 from pytorch_lightning import LightningDataModule
 from torch.utils.data import DataLoader
-from transformers import (AutoTokenizer, BertConfig,
-                          DataCollatorForLanguageModeling,
-                          DataCollatorForWholeWordMask)
+from transformers import (
+    AutoTokenizer,
+    BertConfig,
+    DataCollatorForLanguageModeling,
+    DataCollatorForWholeWordMask,
+)
 
 from perbert import constants
 from perbert.constants import CollatorType, LightningStage, Splits

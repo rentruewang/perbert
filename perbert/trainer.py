@@ -5,11 +5,19 @@ from typing import List
 
 from omegaconf import DictConfig
 from pytorch_lightning import Trainer as PLTrainer
-from pytorch_lightning.callbacks import (Callback, DeviceStatsMonitor,
-                                         EarlyStopping, ModelCheckpoint,
-                                         RichModelSummary, RichProgressBar)
-from pytorch_lightning.loggers import (LightningLoggerBase, TensorBoardLogger,
-                                       WandbLogger)
+from pytorch_lightning.callbacks import (
+    Callback,
+    DeviceStatsMonitor,
+    EarlyStopping,
+    ModelCheckpoint,
+    RichModelSummary,
+    RichProgressBar,
+)
+from pytorch_lightning.loggers import (
+    LightningLoggerBase,
+    TensorBoardLogger,
+    WandbLogger,
+)
 
 
 class Trainer(PLTrainer):

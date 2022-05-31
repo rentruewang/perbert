@@ -14,9 +14,8 @@ from torch.nn import Module
 from torch.optim import Adam, AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 from torchmetrics import Accuracy, Metric
-from transformers import BatchEncoding, BertConfig, BertForMaskedLM
+from transformers import BatchEncoding, BertConfig, BertForMaskedLM, optimization
 from transformers.models.bert.modeling_bert import BertOutput, BertPreTrainedModel
-from transformers import optimization
 
 from . import init
 from .length_schedulers import LengthScheduler
