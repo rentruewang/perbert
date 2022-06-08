@@ -6,6 +6,7 @@ authors = ["RenChu Wang <patrick1031wang@gmail.com>"]
 license = "MIT"
 
 [tool.poetry.dependencies]
+aim = "^3.10.3"
 datasets = "^2.0.0"
 hydra-core = "^1.1.1"
 loguru = "^0.6.0"

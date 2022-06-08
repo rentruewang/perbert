@@ -291,3 +291,4 @@ typings/
 .DS_Store
 /.vscode/
 /outputs/
+/.aim/

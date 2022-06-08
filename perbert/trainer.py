@@ -1,8 +1,9 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import List
+from typing import Dict, List
 
+from aim.pytorch_lightning import AimLogger
 from omegaconf import DictConfig
 from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning.callbacks import (
@@ -73,5 +74,12 @@ class Trainer(PLTrainer):
             else:
                 wandb_logger = WandbLogger()
             loggers.append(wandb_logger)
+
+        if path := logger_cfg["aim"]:
+            if isinstance(path, DictConfig):
+                aim_logger = AimLogger(**path)
+            else:
+                aim_logger = AimLogger()
+            loggers.append(aim_logger)
 
         return loggers

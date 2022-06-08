@@ -1,3 +1,4 @@
 level: INFO
 tensorboard: true
 wandb: true
+aim: true
