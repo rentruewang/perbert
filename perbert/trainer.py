@@ -1,7 +1,7 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import Dict, List
+from typing import List
 
 from aim.pytorch_lightning import AimLogger
 from omegaconf import DictConfig
