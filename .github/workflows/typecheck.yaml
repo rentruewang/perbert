@@ -2,30 +2,24 @@ name: Type Checking
 on: [push]
 jobs:
   type-check:
-    strategy:
-      fail-fast: false
-      matrix:
-        python-version: [3.9]
-        poetry-version: [1.1.13]
-        os: [ubuntu-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - name: 🔔 Check out
         uses: actions/checkout@v2
 
       - name: 🏗️ python
-        uses: actions/setup-python@v2
+        uses: actions/setup-python@v4
         with:
-          python-version: ${{ matrix.python-version }}
+          python-version: "3.10"
       - name: ⬇️ Python Poetry
         uses: abatilo/actions-poetry@v2.0.0
         with:
-          poetry-version: ${{ matrix.poetry-version }}
+          poetry-version: "1.3.0"
       - name: ⬇️ Python Dependencies
         run: poetry install --no-dev
 
       - name: 🏗️ node
-        uses: actions/setup-node@v2
+        uses: actions/setup-node@v3
         with:
           node-verion: 16
       - name: ⬇️ all packages
