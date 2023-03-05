@@ -5,7 +5,7 @@ from typing import List
 
 from aim.pytorch_lightning import AimLogger
 from omegaconf import DictConfig
-from pytorch_lightning import Trainer as PLTrainer
+from lightning import Trainer as PLTrainer
 from pytorch_lightning.callbacks import (
     Callback,
     DeviceStatsMonitor,
@@ -15,7 +15,7 @@ from pytorch_lightning.callbacks import (
     RichProgressBar,
 )
 from pytorch_lightning.loggers import (
-    LightningLoggerBase,
+    Logger,
     TensorBoardLogger,
     WandbLogger,
 )
@@ -52,7 +52,7 @@ class Trainer(PLTrainer):
         return callbacks
 
     @property
-    def __loggers(self) -> List[LightningLoggerBase]:
+    def __loggers(self) -> List[Logger]:
         logger_cfg = self.cfg["loggers"]
 
         loggers = []

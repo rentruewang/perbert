@@ -5,7 +5,7 @@ from typing import Any
 
 import loguru
 from omegaconf import DictConfig
-from pytorch_lightning import LightningDataModule
+from lightning import LightningDataModule
 from torch.utils.data import DataLoader
 from transformers import (
     AutoTokenizer,

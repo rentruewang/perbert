@@ -61,7 +61,7 @@ class DatasetWrapper(Dataset, Sized, Generic[T]):
         return self._seq[key]
 
 
-class DatasetDictWrapper(Dict[str, V]):
+class DatasetDictWrapper(Dict[str, T]):
     def __init__(self, dd: DatasetDict) -> None:
         super().__init__(dd)
 
@@ -72,7 +72,7 @@ class DatasetDictWrapper(Dict[str, V]):
             if str(split) not in dd:
                 raise KeyError("Key {} not found in DatasetDict.", split)
 
-    def __getitem__(self, key: str | Splits) -> V:
+    def __getitem__(self, key: str | Splits) -> T:
         if isinstance(key, Splits):
             key = str(key)
 

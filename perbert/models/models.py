@@ -8,7 +8,7 @@ from typing import Any, Dict, List, Tuple, Type
 import loguru
 import torch
 from omegaconf import DictConfig
-from pytorch_lightning import LightningModule
+from lightning import LightningModule
 from torch import Tensor, no_grad
 from torch.nn import Module
 from torch.optim import Adam, AdamW, Optimizer
@@ -34,7 +34,7 @@ class Model(LightningModule):
         model_name = model_cfg["path"]
         self.max_length = cfg["data"]["max_length"]
 
-        mlm_cls = typing.cast(Type[BertPreTrainedModel], BertForMaskedLM)
+        mlm_cls: Any = BertForMaskedLM
         if model_name is not None:
             lm: Any = mlm_cls.from_pretrained(model_name)
         else:
@@ -145,7 +145,7 @@ class Model(LightningModule):
 
         if met_cfg["accuracy"]:
             loguru.logger.info("Accuracy metric is used.")
-            self.acc = Accuracy(ignore_index=-100)
+            self.acc = Accuracy(task="multiclass", ignore_index=-100)
             metrics["acc"] = self.acc
 
         return metrics
