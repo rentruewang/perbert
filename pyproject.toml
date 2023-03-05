@@ -30,7 +30,7 @@ wandb = "^0.12.11"
 accelerate = "^0.6.1"
 autoflake = "^1.4"
 black = "^22.3.0"
-ipython = "^8.1.1"
+ipython = "^8.10.0"
 isort = "^5.10.1"
 mypy = "^0.941"
 
