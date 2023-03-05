@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import List
 
 from aim.pytorch_lightning import AimLogger
-from omegaconf import DictConfig
 from lightning import Trainer as PLTrainer
+from omegaconf import DictConfig
 from pytorch_lightning.callbacks import (
     Callback,
     DeviceStatsMonitor,
@@ -14,11 +14,7 @@ from pytorch_lightning.callbacks import (
     RichModelSummary,
     RichProgressBar,
 )
-from pytorch_lightning.loggers import (
-    Logger,
-    TensorBoardLogger,
-    WandbLogger,
-)
+from pytorch_lightning.loggers import Logger, TensorBoardLogger, WandbLogger
 
 
 class Trainer(PLTrainer):

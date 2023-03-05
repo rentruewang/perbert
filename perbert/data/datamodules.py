@@ -4,8 +4,8 @@ from __future__ import annotations
 from typing import Any
 
 import loguru
-from omegaconf import DictConfig
 from lightning import LightningDataModule
+from omegaconf import DictConfig
 from torch.utils.data import DataLoader
 from transformers import (
     AutoTokenizer,

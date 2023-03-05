@@ -3,19 +3,19 @@ from __future__ import annotations
 
 import typing
 from enum import Enum
-from typing import Any, Dict, List, Tuple, Type
+from typing import Any, Dict, List, Tuple
 
 import loguru
 import torch
-from omegaconf import DictConfig
 from lightning import LightningModule
+from omegaconf import DictConfig
 from torch import Tensor, no_grad
 from torch.nn import Module
 from torch.optim import Adam, AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR
 from torchmetrics import Accuracy, Metric
 from transformers import BatchEncoding, BertConfig, BertForMaskedLM, optimization
-from transformers.models.bert.modeling_bert import BertOutput, BertPreTrainedModel
+from transformers.models.bert.modeling_bert import BertOutput
 
 from . import init
 from .length_schedulers import LengthScheduler
