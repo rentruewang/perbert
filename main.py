@@ -1,8 +1,8 @@
 import sys
 
+import hydra
 import lightning as L
 import loguru
-import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from perbert.data import TextDataModule
