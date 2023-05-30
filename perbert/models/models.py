@@ -9,7 +9,7 @@ import loguru
 import torch
 from lightning import LightningModule
 from omegaconf import DictConfig
-from torch import Tensor, no_grad
+from torch import Tensor
 from torch.nn import Module
 from torch.optim import Adam, AdamW, Optimizer
 from torch.optim.lr_scheduler import LambdaLR
@@ -75,7 +75,7 @@ class Model(LightningModule):
         logits = logits.reshape(size, logits.size(2))
         labels = batch.labels.view(-1)
 
-        for (metric, func) in self.metrics.items():
+        for metric, func in self.metrics.items():
             result = func(logits, labels)
             self.log(name=f"{name}/{metric}", value=result, on_step=True)
 
@@ -90,11 +90,11 @@ class Model(LightningModule):
             torch.cuda.empty_cache()
         return self._step(batch, batch_idx=batch_idx, name="train")
 
-    @no_grad()
+    @torch.no_grad()
     def test_step(self, batch: BatchEncoding, batch_idx: int) -> Tensor:
         return self._step(batch, batch_idx=batch_idx, name="test")
 
-    @no_grad()
+    @torch.no_grad()
     def validation_step(self, batch: BatchEncoding, batch_idx: int) -> Tensor:
         return self._step(batch, batch_idx=batch_idx, name="validation")
 

@@ -2,7 +2,7 @@ import sys
 
 import lightning as L
 import loguru
-from hydra import main
+import hydra
 from omegaconf import DictConfig, OmegaConf
 
 from perbert.data import TextDataModule
@@ -10,7 +10,7 @@ from perbert.models import Model
 from perbert.trainer import Trainer
 
 
-@main(config_path="conf", config_name="main")
+@hydra.main(config_path="conf", config_name="main")
 def app(cfg: DictConfig) -> None:
     # Always seed everything with the given seed.
     L.seed_everything(cfg["seed"], workers=True)
