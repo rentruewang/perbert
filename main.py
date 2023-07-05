@@ -1,8 +1,8 @@
 import sys
 
 import hydra
-import lightning as L
 import loguru
+import pytorch_lightning as pl
 from omegaconf import DictConfig, OmegaConf
 
 from perbert.data import TextDataModule
@@ -13,7 +13,7 @@ from perbert.trainer import Trainer
 @hydra.main(config_path="conf", config_name="main")
 def app(cfg: DictConfig) -> None:
     # Always seed everything with the given seed.
-    L.seed_everything(cfg["seed"], workers=True)
+    pl.seed_everything(cfg["seed"], workers=True)
 
     logger_cfg = cfg["loggers"]
     if level := logger_cfg["level"]:

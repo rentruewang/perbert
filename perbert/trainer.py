@@ -1,11 +1,12 @@
 # pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
-from typing import List
+import typing
+from typing import Any, List, Mapping
 
 from aim.pytorch_lightning import AimLogger
-from lightning import Trainer as PLTrainer
 from omegaconf import DictConfig
+from pytorch_lightning import Trainer as PLTrainer
 from pytorch_lightning.callbacks import (
     Callback,
     DeviceStatsMonitor,
@@ -57,6 +58,7 @@ class Trainer(PLTrainer):
             if isinstance(path, str):
                 tb_logger = TensorBoardLogger(save_dir=path)
             elif isinstance(path, DictConfig):
+                path = typing.cast(Mapping[str, Any], path)
                 tb_logger = TensorBoardLogger(**path)
             else:
                 tb_logger = TensorBoardLogger(save_dir="tensorboard")
@@ -66,6 +68,7 @@ class Trainer(PLTrainer):
             if isinstance(path, str):
                 wandb_logger = WandbLogger(name=path)
             elif isinstance(path, DictConfig):
+                path = typing.cast(Mapping[str, Any], path)
                 wandb_logger = WandbLogger(**path)
             else:
                 wandb_logger = WandbLogger()
@@ -73,6 +76,7 @@ class Trainer(PLTrainer):
 
         if path := logger_cfg["aim"]:
             if isinstance(path, DictConfig):
+                path = typing.cast(Mapping[str, Any], path)
                 aim_logger = AimLogger(**path)
             else:
                 aim_logger = AimLogger()

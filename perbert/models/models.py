@@ -7,8 +7,8 @@ from typing import Any, Dict, List, Tuple
 
 import loguru
 import torch
-from lightning import LightningModule
 from omegaconf import DictConfig
+from pytorch_lightning import LightningModule
 from torch import Tensor
 from torch.nn import Module
 from torch.optim import Adam, AdamW, Optimizer
