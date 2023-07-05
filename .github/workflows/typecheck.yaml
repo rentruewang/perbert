@@ -20,5 +20,8 @@ jobs:
       - name: ⬇️ Python Dependencies
         run: poetry install
 
+      - name: 🚂 Activate environment
+        run: echo "$(poetry env info --path)/bin" >> $GITHUB_PATH
+
       - name: 🏃 pyright
         uses: jakebailey/pyright-action@v1
