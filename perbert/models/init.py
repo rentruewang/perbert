@@ -1,4 +1,3 @@
-# pyright: reportPrivateImportUsage=false
 from typing import Callable
 
 import loguru

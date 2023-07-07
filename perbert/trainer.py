@@ -1,4 +1,3 @@
-# pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
 import typing
@@ -15,7 +14,8 @@ from pytorch_lightning.callbacks import (
     RichModelSummary,
     RichProgressBar,
 )
-from pytorch_lightning.loggers import Logger, TensorBoardLogger, WandbLogger
+from pytorch_lightning.loggers import Logger, TensorBoardLogger
+from pytorch_lightning.loggers.wandb import WandbLogger
 
 
 class Trainer(PLTrainer):

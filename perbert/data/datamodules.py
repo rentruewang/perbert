@@ -1,4 +1,3 @@
-# pyright: reportPrivateImportUsage=false
 from __future__ import annotations
 
 from typing import Any
@@ -65,7 +64,6 @@ class TextDataModule(LightningDataModule):
             assert Splits.TEST in self.datasets.keys(), self.datasets
 
     def _init_collator(self) -> Collator:
-
         tokenizer = AutoTokenizer.from_pretrained(self.cfg["data"]["tokenizer"])
         mask_prob = self.cfg["model"]["lm"]["mask_prob"]
 
