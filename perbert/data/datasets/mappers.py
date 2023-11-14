@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+import abc
 from typing import Any, Callable, Dict, List, Protocol, TypeVar
 
 import loguru
@@ -12,7 +12,7 @@ from typing_extensions import Self
 
 
 class Mappable(Protocol):
-    @abstractmethod
+    @abc.abstractmethod
     def filter(
         self,
         function: Callable[[Any], Any],
@@ -26,7 +26,7 @@ class Mappable(Protocol):
     ) -> Self:
         ...
 
-    @abstractmethod
+    @abc.abstractmethod
     def map(
         self,
         function: Callable[[Any], Any],
@@ -42,11 +42,11 @@ class Mappable(Protocol):
         ...
 
     @property
-    @abstractmethod
+    @abc.abstractmethod
     def column_names(self) -> List[str] | Dict[str, List[str]]:
         ...
 
-    @abstractmethod
+    @abc.abstractmethod
     def remove_columns(self, column_names: str | List[str]) -> Self:
         ...
 
@@ -68,11 +68,11 @@ T = TypeVar("T", bound=Mappable)
 
 
 class Mapper(Protocol[T]):
-    @abstractmethod
+    @abc.abstractmethod
     def __init__(self, cfg: DictConfig, mapper: T) -> None:
         ...
 
-    @abstractmethod
+    @abc.abstractmethod
     def apply(self) -> T:
         ...
 

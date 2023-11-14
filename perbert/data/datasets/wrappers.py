@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+import abc
 from typing import Dict, Generic, Protocol, Sized, TypeVar
 
 import loguru
@@ -22,12 +22,12 @@ V = TypeVar("V", covariant=True)
 class Indexible(Protocol[K, V]):
     "Indexible type implements both `__len__` and `__getitem__`"
 
-    @abstractmethod
+    @abc.abstractmethod
     def __len__(self) -> int:
         "self.__len__() <==> len(self)"
         ...
 
-    @abstractmethod
+    @abc.abstractmethod
     def __getitem__(self, key: K) -> V:
         "self.__getitem__(key) <==> self[key]"
 

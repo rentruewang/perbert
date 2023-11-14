@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from abc import abstractmethod
+import abc
 from typing import Any, Dict, List, Protocol, Type
 
 from transformers import DataCollatorForLanguageModeling, DataCollatorForWholeWordMask
@@ -9,7 +9,7 @@ from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
 
 class Collator(Protocol):
-    @abstractmethod
+    @abc.abstractmethod
     def __call__(self, encodings: List[Dict[str, Any]]) -> Dict[str, Any]:
         ...
 
