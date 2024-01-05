@@ -1,8 +1,9 @@
+# pyright: reportIncompatibleMethodOverride=false
 from __future__ import annotations
 
 import typing
 from enum import Enum
-from typing import Any, Dict, List, Tuple
+from typing import Any
 
 import loguru
 import torch
@@ -58,8 +59,8 @@ class Model(LightningModule):
     def bert_config(self) -> BertConfig:
         return self.lm.bert.config
 
-    def forward(self, **kwargs: Any) -> BertOutput:
-        return self.lm(**kwargs)
+    def forward(self, *args: Any, **kwargs: Any) -> BertOutput:
+        return self.lm(*args, **kwargs)
 
     def _step(self, batch: BatchEncoding, batch_idx: int, name: str) -> Tensor:
         loguru.logger.trace("{} step batch: {}", name, batch_idx)
@@ -91,13 +92,14 @@ class Model(LightningModule):
 
     @torch.no_grad()
     def test_step(self, batch: BatchEncoding, batch_idx: int) -> Tensor:
+        super().test_step
         return self._step(batch, batch_idx=batch_idx, name="test")
 
     @torch.no_grad()
     def validation_step(self, batch: BatchEncoding, batch_idx: int) -> Tensor:
         return self._step(batch, batch_idx=batch_idx, name="validation")
 
-    def configure_optimizers(self) -> Tuple[List[Optimizer], List[LambdaLR]]:
+    def configure_optimizers(self) -> tuple[list[Optimizer], list[LambdaLR]]:
         model_cfg = self.cfg["model"]
 
         optim_type = OptimizerType(model_cfg["optimizer"])
@@ -137,7 +139,7 @@ class Model(LightningModule):
         loguru.logger.info("Optimizer: {}", optimizer)
         return ([optimizer], [scheduler])
 
-    def configure_metrics(self) -> Dict[str, Metric]:
+    def configure_metrics(self) -> dict[str, Metric]:
         metrics = {}
 
         met_cfg = self.cfg["model"]["metrics"]
