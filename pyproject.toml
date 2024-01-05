@@ -14,7 +14,7 @@ loguru = "^0.6.0"
 numpy = "^1.24.0"
 omegaconf = "^2.1.1"
 python = ">=3.10,<3.11"
-pytorch-lightning = "^1.9.4"
+pytorch-lightning = "^2.1.3"
 rich = "^12.0.0"
 scipy = "^1.8.0"
 tensorflow = "^2.11.0"
@@ -36,21 +36,6 @@ isort = "^5.10.1"
 [build-system]
 requires = ["poetry-core>=1.3.0"]
 build-backend = "poetry.core.masonry.api"
-
-[tool.pyright]
-include = ["perbert"]
-exclude = [
-    "**/node_modules",
-    "**/__pycache__",
-    "src/experimental",
-    "src/typestubs",
-]
-
-reportMissingImports = true
-reportMissingTypeStubs = false
-
-pythonVersion = "3.9"
-pythonPlatform = "Linux"
 
 [tool.isort]
 profile = "black"

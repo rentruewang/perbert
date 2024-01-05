@@ -1,3 +1,4 @@
+# pyright: reportIncompatibleMethodOverride=false
 from __future__ import annotations
 
 import typing
@@ -58,8 +59,8 @@ class Model(LightningModule):
     def bert_config(self) -> BertConfig:
         return self.lm.bert.config
 
-    def forward(self, **kwargs: Any) -> BertOutput:
-        return self.lm(**kwargs)
+    def forward(self, *args: Any, **kwargs: Any) -> BertOutput:
+        return self.lm(*args, **kwargs)
 
     def _step(self, batch: BatchEncoding, batch_idx: int, name: str) -> Tensor:
         loguru.logger.trace("{} step batch: {}", name, batch_idx)
@@ -91,6 +92,7 @@ class Model(LightningModule):
 
     @torch.no_grad()
     def test_step(self, batch: BatchEncoding, batch_idx: int) -> Tensor:
+        super().test_step
         return self._step(batch, batch_idx=batch_idx, name="test")
 
     @torch.no_grad()

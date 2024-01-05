@@ -2,8 +2,7 @@ from __future__ import annotations
 
 import os
 from enum import Enum
-
-from typing_extensions import Self
+from typing import Any
 
 
 class StrEnum(str, Enum):
@@ -13,7 +12,7 @@ class StrEnum(str, Enum):
     def __hash__(self) -> int:
         return hash(str(self))
 
-    def __eq__(self, other: Self | str) -> bool:
+    def __eq__(self, other: Any) -> bool:
         return str(self) == str(other)
 
 
