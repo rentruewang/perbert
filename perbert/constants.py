@@ -29,14 +29,14 @@ class Splits(StrEnum):
 
 
 class CollatorType(StrEnum):
-    Token = "token"
-    WholeWord = "wholeword"
+    TOKEN = "token"
+    WHOLE_WORD = "wholeword"
 
 
 class SchedulerAlgo(StrEnum):
-    Const = "constant"
-    Bert = "bert"
-    Step = "step"
+    CONST = "constant"
+    BERT = "bert"
+    STEP = "step"
 
 
 if (_cpus := os.cpu_count()) is not None:

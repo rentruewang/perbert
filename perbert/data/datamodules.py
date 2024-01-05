@@ -69,9 +69,9 @@ class TextDataModule(LightningDataModule):
 
         collator_type = CollatorType(self.cfg["model"]["lm"]["collator"])
 
-        if collator_type == CollatorType.Token:
+        if collator_type == CollatorType.TOKEN:
             collator_cls = DataCollatorForLanguageModeling
-        elif collator_type == CollatorType.WholeWord:
+        elif collator_type == CollatorType.WHOLE_WORD:
             collator_cls = DataCollatorForWholeWordMask
         else:
             raise ValueError(f"Collator type: {collator_type} not supported.")

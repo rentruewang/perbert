@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import abc
-from typing import Dict, Generic, Protocol, Sized, TypeVar
+from collections.abc import Sized
+from typing import Generic, Protocol, TypeVar
 
 import loguru
 from datasets import DatasetDict
@@ -60,7 +61,7 @@ class DatasetWrapper(Dataset, Sized, Generic[T]):
         return self._seq[key]
 
 
-class DatasetDictWrapper(Dict[str, T]):
+class DatasetDictWrapper(dict[str, T]):
     def __init__(self, dd: DatasetDict) -> None:
         super().__init__(dd)
 

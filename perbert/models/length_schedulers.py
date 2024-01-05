@@ -9,7 +9,7 @@ class LengthScheduler:
         max_length: int,
         total_steps: int,
         min_length: int = 128,
-        algo: str | SchedulerAlgo = SchedulerAlgo.Bert,
+        algo: str | SchedulerAlgo = SchedulerAlgo.BERT,
         step_interval: int = 10000,
         step_size: float = 2.0,
     ) -> None:
@@ -37,11 +37,11 @@ class LengthScheduler:
     def step(self) -> int:
         self.steps += 1
 
-        if self.algo == SchedulerAlgo.Const:
+        if self.algo == SchedulerAlgo.CONST:
             return self.max_length
-        elif self.algo == SchedulerAlgo.Bert:
+        elif self.algo == SchedulerAlgo.BERT:
             return self.bert_schedule()
-        elif self.algo == SchedulerAlgo.Step:
+        elif self.algo == SchedulerAlgo.STEP:
             return self.step_schedule()
         else:
             raise NotImplementedError

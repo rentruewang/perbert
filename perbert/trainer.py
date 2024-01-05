@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import typing
-from typing import Any, List, Mapping
+from collections.abc import Mapping
+from typing import Any
 
 from aim.pytorch_lightning import AimLogger
 from omegaconf import DictConfig
@@ -29,7 +30,7 @@ class Trainer(PLTrainer):
         )
 
     @property
-    def __callbacks(self) -> List[Callback]:
+    def __callbacks(self) -> list[Callback]:
         callback_cfg = self.cfg["callbacks"]
 
         callbacks = []
@@ -49,7 +50,7 @@ class Trainer(PLTrainer):
         return callbacks
 
     @property
-    def __loggers(self) -> List[Logger]:
+    def __loggers(self) -> list[Logger]:
         logger_cfg = self.cfg["loggers"]
 
         loggers = []

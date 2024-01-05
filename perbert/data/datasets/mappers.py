@@ -1,7 +1,8 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Callable, Dict, List, Protocol, TypeVar
+from collections.abc import Callable
+from typing import Any, Protocol, TypeVar
 
 import loguru
 import numpy as np
@@ -36,25 +37,25 @@ class Mappable(Protocol):
         writer_batch_size: int = 1000,
         num_proc: int | None = None,
         load_from_cache_file: bool = False,
-        remove_columns: List[str] | None = None,
+        remove_columns: list[str] | None = None,
         desc: str | None = None,
     ) -> Self:
         ...
 
     @property
     @abc.abstractmethod
-    def column_names(self) -> List[str] | Dict[str, List[str]]:
+    def column_names(self) -> list[str] | dict[str, list[str]]:
         ...
 
     @abc.abstractmethod
-    def remove_columns(self, column_names: str | List[str]) -> Self:
+    def remove_columns(self, column_names: str | list[str]) -> Self:
         ...
 
 
-def _flat_column_names(mapper: Mappable) -> List[str]:
+def _flat_column_names(mapper: Mappable) -> list[str]:
     columns = mapper.column_names
 
-    if isinstance(columns, List):
+    if isinstance(columns, list):
         return columns
 
     columns = sum(columns.values(), [])
@@ -96,10 +97,10 @@ class TextMapper(Mapper[T]):
         self.max_length = data_cfg["max_length"]
         self.tokenizer = AutoTokenizer.from_pretrained(data_cfg["tokenizer"])
 
-    def _filter_empty(self, entry: Dict[str, str]) -> bool:
+    def _filter_empty(self, entry: dict[str, str]) -> bool:
         return len(entry["text"]) > 0
 
-    def _line_by_line(self, entries: Dict[str, str]) -> BatchEncoding:
+    def _line_by_line(self, entries: dict[str, str]) -> BatchEncoding:
         return self.tokenizer(
             entries["text"],
             padding=self.padding,
@@ -109,7 +110,7 @@ class TextMapper(Mapper[T]):
             return_tensors="np",
         )
 
-    def _joined_lines(self, entries: Dict[str, List[str]]) -> Dict[str, List[ndarray]]:
+    def _joined_lines(self, entries: dict[str, list[str]]) -> dict[str, list[ndarray]]:
         joined_line = " ".join(entries["text"])
 
         tokenized = self.tokenizer(

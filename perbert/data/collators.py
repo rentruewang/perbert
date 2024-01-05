@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import abc
-from typing import Any, Dict, List, Protocol, Type
+from typing import Any, Protocol
 
 from transformers import DataCollatorForLanguageModeling, DataCollatorForWholeWordMask
 from transformers.tokenization_utils import PreTrainedTokenizer
@@ -10,14 +10,14 @@ from transformers.tokenization_utils_fast import PreTrainedTokenizerFast
 
 class Collator(Protocol):
     @abc.abstractmethod
-    def __call__(self, encodings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def __call__(self, encodings: list[dict[str, Any]]) -> dict[str, Any]:
         ...
 
 
 class HuggingfaceCollator(Collator):
     def __init__(
         self,
-        klass: Type[DataCollatorForLanguageModeling | DataCollatorForWholeWordMask],
+        klass: type[DataCollatorForLanguageModeling | DataCollatorForWholeWordMask],
         *,
         tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
         mask_prob: float,
@@ -42,7 +42,7 @@ class HuggingfaceCollator(Collator):
             return_tensors="pt",
         )
 
-    def __call__(self, encodings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def __call__(self, encodings: list[dict[str, Any]]) -> dict[str, Any]:
         collator = self._get_collator()
         return collator(encodings)
 
@@ -50,7 +50,7 @@ class HuggingfaceCollator(Collator):
 class DecayCollator(HuggingfaceCollator):
     def __init__(
         self,
-        klass: Type[DataCollatorForLanguageModeling | DataCollatorForWholeWordMask],
+        klass: type[DataCollatorForLanguageModeling | DataCollatorForWholeWordMask],
         *,
         tokenizer: PreTrainedTokenizer | PreTrainedTokenizerFast,
         mask_prob: float,
@@ -69,7 +69,7 @@ class DecayCollator(HuggingfaceCollator):
         self._eventual_mask_prob = self.mask_prob
         self.mask_prob = 0
 
-    def __call__(self, encodings: List[Dict[str, Any]]) -> Dict[str, Any]:
+    def __call__(self, encodings: list[dict[str, Any]]) -> dict[str, Any]:
         prob_diff = self._eventual_mask_prob - self.mask_prob
         self.mask_prob = self._eventual_mask_prob - prob_diff * self.base
         return super().__call__(encodings=encodings)

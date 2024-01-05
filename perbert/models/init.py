@@ -1,4 +1,4 @@
-from typing import Callable
+from collections.abc import Callable
 
 import loguru
 from torch.nn import Embedding, LayerNorm, Linear, Module, init
