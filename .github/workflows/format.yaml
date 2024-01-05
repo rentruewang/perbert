@@ -15,13 +15,16 @@ jobs:
       - name: ⬇️ Python Poetry
         uses: abatilo/actions-poetry@v2
         with:
-          poetry-version: "1.5"
+          poetry-version: "1.7"
 
       - name: ⬇️ Python Dependencies
         run: poetry install
 
+      - name: 🚂 Activate environment
+        run: echo "$(poetry env info --path)/bin" >> $GITHUB_PATH
+
       - name: 🏃 autoflake, isort, black
         run: |
-          poetry run autoflake -cr $(find -iname "*.py" ! -path '*/.venv/*' ! -name __init__.py) --remove-all-unused-imports
-          poetry run isort --check .
-          poetry run black --check .
+          autoflake -cr $(find -iname "*.py" ! -path '*/.venv/*' ! -name __init__.py) --remove-all-unused-imports
+          isort --profile black --check .
+          black --check .
