@@ -15,8 +15,7 @@ from pytorch_lightning.callbacks import (
     RichModelSummary,
     RichProgressBar,
 )
-from pytorch_lightning.loggers import Logger, TensorBoardLogger
-from pytorch_lightning.loggers.wandb import WandbLogger
+from pytorch_lightning.loggers import Logger, TensorBoardLogger, WandbLogger
 
 
 class Trainer(PLTrainer):

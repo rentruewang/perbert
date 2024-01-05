@@ -13,10 +13,10 @@ from perbert.constants import Splits
 T = TypeVar("T")
 "T is a invariant type."
 
-K = TypeVar("K", contravariant=True)
+K = TypeVar("K")
 "K is a contravariant type."
 
-V = TypeVar("V", covariant=True)
+V = TypeVar("V")
 "V is a covariant type."
 
 
