@@ -2,6 +2,7 @@ name: Formatting
 on: [push]
 jobs:
   format-all:
+    name: 📑 Formatting
     runs-on: ubuntu-latest
     steps:
       - name: 🔔 Check out
@@ -10,21 +11,21 @@ jobs:
       - name: 🏗️ python
         uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: "3.13"
 
-      - name: ⬇️ Python Poetry
-        uses: abatilo/actions-poetry@v2
+      - name: ⬇️ Python PDM
+        uses: pdm-project/setup-pdm@v4
         with:
-          poetry-version: "1.7"
+          cache: true
 
       - name: ⬇️ Python Dependencies
-        run: poetry install
+        run: pdm sync -G:all
 
-      - name: 🚂 Activate environment
-        run: echo "$(poetry env info --path)/bin" >> $GITHUB_PATH
+      - name: 🏃 autoflake
+        run: pdm run pre-commit run --all-files autoflake
 
-      - name: 🏃 autoflake, isort, black
-        run: |
-          autoflake -cr $(find -iname "*.py" ! -path '*/.venv/*' ! -name __init__.py) --remove-all-unused-imports
-          isort --profile black --check .
-          black --check .
+      - name: 🏃 isort
+        run: pdm run pre-commit run --all-files isort
+
+      - name: 🏃 black
+        run: pdm run pre-commit run --all-files black
